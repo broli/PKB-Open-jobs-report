@@ -2,6 +2,7 @@ import pandas as pd
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import os
+from tkinter import StringVar, OptionMenu
 
 # --- Configuration Variables ---
 STATUS_FILE = "invoice_status.pkl"
@@ -16,6 +17,11 @@ DEFAULT_PADDING = 10
 DATE_FORMAT = '%b-%d'
 CURRENCY_COLUMNS = ['Invoice Total', 'Balance']
 CURRENCY_FORMAT = '${:,.2f}'
+ALLOWED_STATUS = [
+    "Waiting Measure", "Ready to order", "Waiting for materials",
+    "Ready to dispatch", "In install", "Done", "Permit",
+    "Cancelled/Postponed"
+]
 # --- End Configuration ---
 
 def load_excel(excel_file):
@@ -203,7 +209,6 @@ class InvoiceApp(tk.Tk):
 
     def populate_treeview(self):
         """Populates the Treeview with data."""
-
         date_columns = ['Order Date', 'Turn in Date']
         for i in self.tree.get_children():
             self.tree.delete(i)
@@ -215,7 +220,13 @@ class InvoiceApp(tk.Tk):
                 if col in date_columns and pd.notna(value):
                     value = value.strftime(DATE_FORMAT)
                 if col in CURRENCY_COLUMNS and pd.notna(value):
-                    value = CURRENCY_FORMAT.format(value)
+                    if pd.notna(value):
+                        try:
+                            value = float(value)  # Convert to float if possible
+                            value = CURRENCY_FORMAT.format(value)
+                        except ValueError:
+                            # If conversion fails, keep the original value
+                            pass
                 values.append(value)
             self.tree.insert("", tk.END, values=values)
 
@@ -229,9 +240,8 @@ class InvoiceApp(tk.Tk):
                 self.status_df = process_data(new_df, self.status_df)
                 self.configure_treeview_columns()
                 self.after(10, self.set_column_widths)
-                self.color_rows()  # Re-apply row colors
+                self.color_rows()
                 self.populate_treeview()
-                # self.color_rows()
 
     def save_data(self):
         """Saves the current data."""
@@ -250,7 +260,6 @@ class InvoiceApp(tk.Tk):
 
     def on_double_click(self, event):
         """Handles double-clicks on Treeview items to allow editing."""
-
         item = self.tree.identify_row(event.y)
         column = self.tree.identify_column(event.x)
 
@@ -261,7 +270,6 @@ class InvoiceApp(tk.Tk):
 
     def create_editing_window(self, item, column):
         """Creates a pop-up window for editing a cell."""
-
         self.editing_window = tk.Toplevel(self)
         self.editing_window.title(f"Edit {column[1:]}")
 
@@ -282,6 +290,40 @@ class InvoiceApp(tk.Tk):
 
         save_button = ttk.Button(self.editing_window, text="Save", command=save_edit)
         save_button.pack(pady=DEFAULT_PADDING)
+
+    def create_status_dropdown(self, item, column):
+        """Creates a dropdown menu for editing the Status."""
+        self.editing_window = tk.Toplevel(self)
+        self.editing_window.title(f"Edit {column[1:]}")  # Remove the '#' here
+
+        # Correctly get the column name from the Treeview column identifier
+        column_index = int(column[1:]) - 1  # convert to int and -1 for 0 index
+        column_name = self.status_df.columns[column_index]
+        current_value = self.tree.item(item, "values")[column_index]
+
+        status_var = StringVar(self.editing_window)
+        status_var.set(current_value)  # Set the current value
+
+        status_dropdown = OptionMenu(self.editing_window, status_var, *ALLOWED_STATUS)
+        status_dropdown.pack(padx=DEFAULT_PADDING, pady=DEFAULT_PADDING)
+
+        def save_edit():
+            new_value = status_var.get()
+            if new_value in ALLOWED_STATUS:
+                values = self.tree.item(item, "values")
+                values[column_index] = new_value
+                self.tree.item(item, values=values)
+                self.editing_window.destroy()
+                self.editing_window = None
+                self.color_rows()
+                self.set_column_widths()
+            else:
+                messagebox.showerror("Error", "Invalid Status")
+
+        save_button = ttk.Button(self.editing_window, text="Save", command=save_edit)
+        save_button.pack(pady=DEFAULT_PADDING)
+
+
 
     def delete_selected_row(self, event):
         """Deletes the currently selected row from the Treeview."""
