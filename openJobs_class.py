@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, StringVar, OptionMenu
 import pandas as pd
-from data_utils import load_status, save_status, load_excel, process_data, generate_report
+from data_utils import load_status, save_status, load_excel, process_data
 import logging
 
 # --- Configuration Variables ---
@@ -159,7 +159,16 @@ class OpenJobsApp(tk.Tk):
         """Generates the report."""
 
         self.save_data()
-        generate_report(self.status_df)
+        self.generate_report_helper()  # Call the helper function
+
+    def generate_report_helper(self):
+        """Helper function to generate the report."""
+        open_invoices = self.status_df[self.status_df['Status'] != 'Closed']
+        try:
+            open_invoices.to_excel(OUTPUT_FILE, index=False)
+            messagebox.showinfo("Info", f"Report generated: {OUTPUT_FILE}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error generating report: {e}")
 
     def on_double_click(self, event):
         """Handles double-clicks on Treeview items to allow editing."""
@@ -225,8 +234,6 @@ class OpenJobsApp(tk.Tk):
 
         save_button = ttk.Button(self.editing_window, text="Save", command=save_edit)
         save_button.pack(pady=DEFAULT_PADDING)
-
-
 
     def delete_selected_row(self, event):
         """Deletes the currently selected row from the Treeview."""

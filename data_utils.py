@@ -86,3 +86,21 @@ def process_data(new_df, status_df):
         return row
 
     merged_df = merged_df.apply(update_row, axis=1)
+
+    # 3. Clean up the merged DataFrame
+    cols_to_drop = ['_merge']
+    for col in new_df.columns:
+        if col != 'Invoice #':
+            cols_to_drop.append(col + '_new')
+    for col in status_df.columns:
+        if col not in ('Invoice #', 'Status', 'Notes'):
+            cols_to_drop.append(col + '_old')
+
+    final_df = merged_df.drop(columns=cols_to_drop, errors='ignore')
+
+    # 4. Ensure final DataFrame has the expected columns
+    for col in EXPECTED_COLUMNS:
+        if col not in final_df.columns:
+            final_df[col] = None
+
+    return final_df[EXPECTED_COLUMNS]
