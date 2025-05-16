@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, StringVar, OptionMenu
+import sv_ttk # Import the sun valley ttk theme
 import pandas as pd
 from data_utils import load_status, save_status, load_excel, process_data
 import logging
@@ -12,7 +13,7 @@ EXPECTED_COLUMNS = [
     'Invoice Total', 'Balance', 'Salesperson', 'Project Coordinator',
     'Status', 'Notes'
 ]
-DEFAULT_FONT = ('Calibri', 14)
+DEFAULT_FONT = ('Calibri', 16)
 DEFAULT_PADDING = 10
 DATE_FORMAT = '%b-%d'
 CURRENCY_COLUMNS = ['Invoice Total', 'Balance']
@@ -28,12 +29,16 @@ logging.basicConfig(level=logging.DEBUG)  # Set to logging.INFO or logging.ERROR
 class OpenJobsApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        sv_ttk.set_theme("dark")  # Or "light"
         self.title("Open Jobs App")  # Application Title
         self.maximize_window()
 
         self.style = ttk.Style(self)
         self.style.configure("Treeview", font=DEFAULT_FONT)
         self.style.configure("Treeview.Heading", font=DEFAULT_FONT)
+
+        #app background color
+        self.configure(background="steel blue")
 
         self.status_df = load_status()
         self.create_widgets()
