@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import os
 from tkinter import StringVar, OptionMenu
+import logging
 
 # --- Configuration Variables ---
 STATUS_FILE = "invoice_status.pkl"
@@ -22,6 +23,9 @@ ALLOWED_STATUS = [
     "Ready to dispatch", "In install", "Done", "Permit",
     "Cancelled/Postponed"
 ]
+# Configure the logging level
+logging.basicConfig(level=logging.DEBUG)  # Set to logging.INFO or logging.ERROR for production
+
 # --- End Configuration ---
 
 def load_excel(excel_file):
@@ -39,10 +43,12 @@ def load_excel(excel_file):
 def load_status():
     """Loads the current status DataFrame from a pickle file."""
     try:
+        logging.debug(f"Trying to load status from {STATUS_FILE}")
         df = pd.read_pickle(STATUS_FILE)
         return df
     except FileNotFoundError:
         # Create empty DataFrame if file doesn't exist
+        logging.debug(f"File not found: {STATUS_FILE}, so creating empty DataFrame.")
         df = pd.DataFrame(columns=EXPECTED_COLUMNS)
         return df
     except Exception as e:
@@ -125,7 +131,7 @@ def generate_report(df):
 class InvoiceApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Invoice Status Tracker")
+        self.title("Open jobs Status Tracker")
         self.maximize_window()
 
         self.style = ttk.Style(self)
