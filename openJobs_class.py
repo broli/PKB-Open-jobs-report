@@ -7,13 +7,13 @@ import logging
 
 # --- Configuration Variables ---
 STATUS_FILE = "invoice_status.pkl"
-OUTPUT_FILE = "open_invoices.xlsx"
+OUTPUT_FILE = "open_invoices.xlsx" # Default name for generated report
 EXPECTED_COLUMNS = [
     '#', 'Invoice #', 'Order Date', 'Turn in Date', 'Account',
     'Invoice Total', 'Balance', 'Salesperson', 'Project Coordinator',
     'Status', 'Notes'
 ]
-DEFAULT_FONT = ('Calibri', 16)
+DEFAULT_FONT = ('Calibri', 12) # Adjusted default font size for potentially more columns visible
 DEFAULT_PADDING = 10
 DATE_FORMAT = '%b-%d'
 CURRENCY_COLUMNS = ['Invoice Total', 'Balance']
@@ -21,349 +21,376 @@ CURRENCY_FORMAT = '${:,.2f}'
 ALLOWED_STATUS = [
     "Waiting Measure", "Ready to order", "Waiting for materials",
     "Ready to dispatch", "In install", "Done", "Permit",
-    "Cancelled/Postponed"
+    "Cancelled/Postponed", "New", "Closed"
 ]
+
+# Define preferred widths for specific columns (in pixels)
+# Adjust these values to your liking.
+PREFERRED_COLUMN_WIDTHS = {
+    '#': 10,
+    'Invoice #': 30,
+    'Order Date': 30,
+    'Turn in Date': 30,
+    'Account': 220,
+    'Invoice Total': 50,
+    'Balance': 50,
+    'Salesperson': 100,
+    'Project Coordinator': 130,
+    'Status': 160,
+    'Notes': 300
+}
+
+# Minimum and maximum allowable width for any column (dynamic or preferred)
+MIN_COLUMN_WIDTH = 10
+MAX_COLUMN_WIDTH = 450 # Adjusted max slightly
+
 # Configure the logging level
-logging.basicConfig(level=logging.DEBUG)  # Set to logging.INFO or logging.ERROR for production
-#logging.basicConfig(level=logging.ERROR)  # Set to logging.INFO or logging.ERROR for production
-#
+logging.basicConfig(level=logging.DEBUG)
 
 class OpenJobsApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        sv_ttk.set_theme("dark")  # Or "light"
-        self.title("Open Jobs App")  # Application Title
+        sv_ttk.set_theme("light")
+        self.title("Open Jobs App")
         self.maximize_window()
 
         self.style = ttk.Style(self)
-        self.style.configure("Treeview", font=DEFAULT_FONT)
-        self.style.configure("Treeview.Heading", font=DEFAULT_FONT)
+        self.style.configure("Treeview", font=DEFAULT_FONT, rowheight=28) # Adjusted rowheight
+        self.style.configure("Treeview.Heading", font=(DEFAULT_FONT[0], DEFAULT_FONT[1], 'bold'))
 
-        #app background color
-        self.configure(background="steel blue")
+        self.status_colors = {
+            "default_fg": "black", "default_bg": "white",
+            "action_needed_bg": "#FFEBEE", "action_needed_fg": "black",
+            "all_good_bg": "#E8F5E9", "all_good_fg": "black",
+            "closed_bg": "#F5F5F5", "closed_fg": "black",
+            "new_bg": "#E3F2FD", "new_fg": "black",
+            "selected_bg": "#B0BEC5", "selected_fg": "black"
+        }
+        
+        self.style.map("Treeview",
+                       background=[('selected', self.status_colors["selected_bg"])],
+                       foreground=[('selected', self.status_colors["selected_fg"])])
 
         self.status_df = load_status()
+        if self.status_df is None:
+            messagebox.showerror("Fatal Error", "Could not load status data. Exiting.")
+            self.destroy()
+            return
+        elif not all(col in self.status_df.columns for col in EXPECTED_COLUMNS):
+             messagebox.showwarning("Data Warning", "Loaded data is missing some expected columns. Defaults will be used.")
+             for col in EXPECTED_COLUMNS:
+                 if col not in self.status_df.columns:
+                     self.status_df[col] = "" # Use empty string as default for missing cols
+
         self.create_widgets()
 
     def maximize_window(self):
-        """Maximizes the application window."""
-        self.state('zoomed')
+        try:
+            self.state('zoomed')
+        except tk.TclError:
+            self.attributes('-fullscreen', True)
 
     def create_widgets(self):
-        # --- Menu Bar ---
         menu_bar = tk.Menu(self)
         file_menu = tk.Menu(menu_bar, tearoff=0)
         file_menu.add_command(label="Load New Excel", command=self.load_new_excel)
         file_menu.add_command(label="Save", command=self.save_data)
         file_menu.add_command(label="Generate Report", command=self.generate_report)
         file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.destroy)
+        file_menu.add_command(label="Exit", command=self.quit)
         menu_bar.add_cascade(label="File", menu=file_menu)
         self.config(menu=menu_bar)
 
-        # --- Treeview for Displaying Data ---
-        self.tree = ttk.Treeview(self, columns=list(self.status_df.columns), show="headings")
-        for col in self.status_df.columns:
+        tree_columns = list(self.status_df.columns) if self.status_df is not None else EXPECTED_COLUMNS
+        self.tree = ttk.Treeview(self, columns=tree_columns, show="headings")
+
+        for col in tree_columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=100, anchor=tk.W)  # Initial width, left-aligned
-        self.tree.pack(fill=tk.BOTH, expand=True)
+            # Initial width is set here but will be overridden by set_column_widths
+            self.tree.column(col, width=PREFERRED_COLUMN_WIDTHS.get(col, 100), anchor=tk.W)
+        self.tree.pack(fill=tk.BOTH, expand=True, padx=DEFAULT_PADDING, pady=DEFAULT_PADDING)
 
-        # --- Apply Gridlines Style ---
-        self.apply_gridline_style()  # Apply gridlines initially
-
-        # --- Editing Functionality ---
         self.tree.bind("<Double-1>", self.on_double_click)
         self.tree.bind("<Delete>", self.delete_selected_row)
         self.editing_window = None
 
         self.populate_treeview()
-        self.set_column_widths()
-        self.color_rows()
-        self.apply_gridline_style()  # Apply gridlines again just in case
-
-
-    def apply_gridline_style(self):
-        """Applies the gridline style to the Treeview."""
-        self.style.layout("Treeview", [('Treeview.field', {'sticky': 'nswe'})])
 
     def configure_treeview_columns(self):
-        """
-        Completely rebuilds the Treeview columns to match the current data.
-        This is the most robust way to ensure the Treeview's structure is correct.
-        """
-
-        # 1. Get all current items and their values
-        items = self.tree.get_children()
-        all_data = [self.tree.item(item, 'values') for item in items]
-
-        # 2. Detach the Treeview from its parent
-        self.tree.pack_forget()
-
-        # 3. Create a new Treeview
-        self.tree = ttk.Treeview(self, columns=list(self.status_df.columns), show="headings")
-
-        # 4. Re-pack the Treeview
-        self.tree.pack(fill=tk.BOTH, expand=True)
-
-        # 5. Re-apply the style and bindings
-        self.apply_gridline_style()  # Re-apply gridline style
-        self.tree.bind("<Double-1>", self.on_double_click)
-        self.tree.bind("<Delete>", self.delete_selected_row)
-
-        # 6. Recreate the headings
-        for col in self.status_df.columns:
+        current_columns = list(self.status_df.columns)
+        self.tree.configure(columns=current_columns)
+        for col in current_columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=100, anchor=tk.W)  # Initial width, left-aligned
-
-        # 7. Re-insert the data (if any)
-        for values in all_data:
-            self.tree.insert("", tk.END, values=values)
+            self.tree.column(col, width=PREFERRED_COLUMN_WIDTHS.get(col, 100), anchor=tk.W)
 
     def populate_treeview(self):
-        """Populates the Treeview with data."""
-        date_columns = ['Order Date', 'Turn in Date']
         for i in self.tree.get_children():
             self.tree.delete(i)
 
+        if self.status_df is None or self.status_df.empty:
+            logging.info("No data to populate in the treeview.")
+            self.set_column_widths() # Still set widths for empty table based on headings/preferred
+            return
+
+        date_columns = ['Order Date', 'Turn in Date']
+        try:
+            status_col_idx = list(self.status_df.columns).index('Status')
+        except ValueError:
+            logging.error("'Status' column not found in DataFrame. Cannot populate correctly.")
+            return
+
         for index, row in self.status_df.iterrows():
             values = []
-            for col in self.status_df.columns:
-                value = row[col]
-                if col in date_columns and pd.notna(value):
-                    value = value.strftime(DATE_FORMAT)
-                if col in CURRENCY_COLUMNS and pd.notna(value):
-                    if pd.notna(value):
-                        try:
-                            value = float(value)  # Convert to float if possible
-                            value = CURRENCY_FORMAT.format(value)
-                        except ValueError:
-                            # If conversion fails, keep the original value
-                            pass
-                values.append(value)
-            self.tree.insert("", tk.END, values=values)
+            for col_name in self.status_df.columns:
+                value = row[col_name]
+                if col_name in date_columns and pd.notna(value):
+                    try: value = pd.to_datetime(value).strftime(DATE_FORMAT)
+                    except: pass
+                elif col_name in CURRENCY_COLUMNS and pd.notna(value):
+                    try:
+                        value = float(str(value).replace('$', '').replace(',', ''))
+                        value = CURRENCY_FORMAT.format(value)
+                    except: pass
+                values.append(value if pd.notna(value) else "")
+            self.tree.insert("", tk.END, values=tuple(values), tags=(str(index),))
+
+        self.after(10, self.set_column_widths)
+        self.color_rows()
 
     def load_new_excel(self):
-        """Loads a new Excel file and processes the data."""
+        excel_file_path = filedialog.askopenfilename(
+            title="Select Excel File",
+            filetypes=[("Excel files", "*.xlsx;*.xls"), ("All files", "*.*")]
+        )
+        if not excel_file_path: return
 
-        excel_file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if excel_file_path:
-            new_df = load_excel(excel_file_path)
-            if new_df is not None:
-                self.status_df = process_data(new_df, self.status_df)
-                self.configure_treeview_columns()
-                self.after(10, self.set_column_widths)
-                self.color_rows()
-                self.populate_treeview()
+        new_df = load_excel(excel_file_path)
+        if new_df is None: return
+
+        self.status_df = process_data(new_df, self.status_df.copy() if self.status_df is not None else pd.DataFrame(columns=EXPECTED_COLUMNS))
+
+        if self.status_df is None:
+            messagebox.showerror("Error", "Failed to process the new Excel data.")
+            self.status_df = pd.DataFrame(columns=EXPECTED_COLUMNS)
+            return
+
+        for col in EXPECTED_COLUMNS:
+            if col not in self.status_df.columns:
+                self.status_df[col] = "" # Default for new columns
+
+        self.status_df = self.status_df[EXPECTED_COLUMNS] # Ensure correct column order
+        self.configure_treeview_columns()
+        self.populate_treeview()
 
     def save_data(self):
-        """Saves the current data."""
-
-        all_data = []
-        for item in self.tree.get_children():
-            all_data.append(self.tree.item(item, 'values'))
-        self.status_df = pd.DataFrame(all_data, columns=list(self.status_df.columns))
+        if self.status_df is None:
+            messagebox.showerror("Error", "No data to save.")
+            return
         save_status(self.status_df)
 
     def generate_report(self):
-        """Generates the report."""
+        if self.status_df is None or self.status_df.empty:
+            messagebox.showinfo("Info", "No data available to generate a report.")
+            return
 
-        self.save_data()
-        self.generate_report_helper()  # Call the helper function
+        open_invoices = self.status_df[
+            ~self.status_df['Status'].isin(['Closed', 'Cancelled/Postponed'])
+        ].copy()
 
-    def generate_report_helper(self):
-        """Helper function to generate the report."""
-        open_invoices = self.status_df[self.status_df['Status'] != 'Closed']
         try:
-            open_invoices.to_excel(OUTPUT_FILE, index=False)
-            messagebox.showinfo("Info", f"Report generated: {OUTPUT_FILE}")
+            report_file_path = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")],
+                title="Save Open Invoices Report As",
+                initialfile=OUTPUT_FILE
+            )
+            if not report_file_path:
+                messagebox.showinfo("Info", "Report generation cancelled.")
+                return
+            open_invoices.to_excel(report_file_path, index=False)
+            messagebox.showinfo("Success", f"Report generated: {report_file_path}")
         except Exception as e:
+            logging.error(f"Error generating report: {e}")
             messagebox.showerror("Error", f"Error generating report: {e}")
 
-    
     def on_double_click(self, event):
-        """Handles double-clicks on Treeview items to allow editing."""
-        item = self.tree.identify_row(event.y)
-        column_id_str = self.tree.identify_column(event.x)  # e.g., "#1", "#2"
+        item_id = self.tree.identify_row(event.y)
+        column_id_str = self.tree.identify_column(event.x)
+        if not item_id or not column_id_str: return
 
-        if item and column_id_str:  # Check if a valid row and column were clicked
-            try:
-                # Convert the column ID string (e.g., "#3") to a 0-based index
-                column_index = int(column_id_str.replace("#", "")) - 1
-
-                # Get the actual name of the column from your DataFrame columns list
-                if 0 <= column_index < len(self.status_df.columns):
-                    actual_column_name = self.status_df.columns[column_index]
-
-                    if self.editing_window: # Destroy any existing editing window
-                        self.editing_window.destroy()
-                        self.editing_window = None
-
-                    #  Direct to specific editor based on column name
-                    if actual_column_name == "Status":
-                        logging.debug(f"Double-clicked 'Status' column. Item: {item}, Column ID: {column_id_str}")
-                        self.create_status_dropdown(item, column_id_str) # Use column_id_str for this function
-                    elif actual_column_name == "Notes":
-                        logging.debug(f"Double-clicked 'Notes' column. Item: {item}, Column Name: {actual_column_name}")
-                        self.create_editing_window(item, actual_column_name) # Use actual_column_name
-                    else:
-                        logging.debug(f"Double-clicked column '{actual_column_name}' is not configured for editing or has no special editor.")
-                else:
-                    logging.warning(f"Invalid column index derived: {column_index}")
-
-            except ValueError:
-                logging.error(f"Could not parse column ID: {column_id_str}")
-            except IndexError:
-                logging.error(f"Column index out of bounds: {column_index}") # Should use the derived column_index in the log
-        else:
-            logging.debug("Double-click was not on a valid cell.")
-
-
-    
-    def create_editing_window(self, item, actual_column_name): # Parameter renamed for clarity
-        """Creates a pop-up window for editing a cell."""
-        logging.debug(f"Starting create_editing_window for item: {item}, column: {actual_column_name}")
-        self.editing_window = tk.Toplevel(self)
-        self.editing_window.title(f"Edit {actual_column_name}") # Use the actual column name
-
-        # Get the index of the column using the actual_column_name
         try:
-            column_idx = list(self.status_df.columns).index(actual_column_name)
-        except ValueError:
-            logging.error(f"Column name '{actual_column_name}' not found in DataFrame columns.")
-            self.editing_window.destroy() # Close the Toplevel window if column is invalid
-            return
+            column_index = int(column_id_str.replace("#", "")) - 1
+            if not (0 <= column_index < len(self.status_df.columns)): return
 
-        current_value = self.tree.item(item, "values")[column_idx]
+            actual_column_name = self.status_df.columns[column_index]
+            df_row_index = int(self.tree.item(item_id, "tags")[0])
 
-        entry = tk.Entry(self.editing_window, width=50)
-        entry.insert(tk.END, str(current_value)) # Ensure current_value is a string for the entry
-        entry.pack(padx=DEFAULT_PADDING, pady=DEFAULT_PADDING)
-
-        def save_edit():
-            new_value = entry.get()
-            # current_tree_values is a tuple, convert to list for modification
-            current_tree_values_list = list(self.tree.item(item, "values"))
-
-            # Use the same column_idx derived earlier
-            current_tree_values_list[column_idx] = new_value
-
-            # Update the tree item with the modified list (converted back to tuple)
-            self.tree.item(item, values=tuple(current_tree_values_list))
-
-            self.editing_window.destroy()
-            self.editing_window = None
-            self.color_rows() # Assuming this function relies on updated tree values
-            # self.set_column_widths() # Consider if this is needed immediately after a single cell edit
-
-        save_button = ttk.Button(self.editing_window, text="Save", command=save_edit)
-        save_button.pack(pady=DEFAULT_PADDING)
-
-
-    def create_status_dropdown(self, item, column): # 'column' here is column_id_str e.g., "#10"
-        """Creates a dropdown menu for editing the Status."""
-        self.editing_window = tk.Toplevel(self)
-        
-        column_index = -1 # Initialize to an invalid index
-        try:
-            # Correctly get the column name and index from the Treeview column identifier
-            column_index = int(column[1:]) - 1  # convert to int and -1 for 0 index
-            column_name = self.status_df.columns[column_index] # This will be "Status"
-        except (ValueError, IndexError) as e:
-            logging.error(f"Error deriving column index/name from ID '{column}': {e}")
-            self.editing_window.destroy()
-            return
-
-        self.editing_window.title(f"Edit {column_name}") 
-
-        current_value_tuple = self.tree.item(item, "values")
-        
-        if not (0 <= column_index < len(current_value_tuple)):
-            logging.error(f"Column index {column_index} is out of bounds for item values (length {len(current_value_tuple)}).")
-            self.editing_window.destroy()
-            return
-            
-        current_value = current_value_tuple[column_index]
-
-        status_var = StringVar(self.editing_window)
-        
-        if str(current_value) in ALLOWED_STATUS: # Ensure comparison with string form if necessary
-            status_var.set(current_value)
-        elif ALLOWED_STATUS: 
-            status_var.set(ALLOWED_STATUS[0])
-        # else: status_var will be empty, which is fine for OptionMenu, or set a default
-
-        status_dropdown = OptionMenu(self.editing_window, status_var, *ALLOWED_STATUS)
-        status_dropdown.pack(padx=DEFAULT_PADDING, pady=DEFAULT_PADDING)
-
-        def save_edit():
-            new_value = status_var.get()
-            
-            # 1. Get the current values from the tree item (it's a tuple).
-            current_tree_values_tuple = self.tree.item(item, "values")
-            # 2. Convert this tuple to a list to allow modification.
-            values_list = list(current_tree_values_tuple)
-            
-            # 3. Modify the list at the correct column_index.
-            # Ensure column_index is still valid (it should be from the outer scope)
-            if 0 <= column_index < len(values_list):
-                values_list[column_index] = new_value
-            else:
-                logging.error(f"column_index {column_index} out of bounds during save_edit.")
+            if self.editing_window and self.editing_window.winfo_exists():
                 self.editing_window.destroy()
-                self.editing_window = None
-                return
+            self.editing_window = None
 
-            # 4. Update the tree item with the modified list (converted back to a tuple).
-            self.tree.item(item, values=tuple(values_list))
-            
-            self.editing_window.destroy()
-            self.editing_window = None 
-            self.color_rows()
-            self.set_column_widths() # Optional: if status change affects width significantly
+            if actual_column_name == "Status":
+                self.create_status_dropdown(item_id, df_row_index, column_index, actual_column_name)
+            elif actual_column_name == "Notes":
+                self.create_notes_editor(item_id, df_row_index, column_index, actual_column_name)
+            else:
+                logging.debug(f"No special editor for column '{actual_column_name}'.")
+        except (ValueError, IndexError) as e:
+            logging.error(f"Error in on_double_click: {e}")
 
-        save_button = ttk.Button(self.editing_window, text="Save", command=save_edit)
-        save_button.pack(pady=DEFAULT_PADDING)
+    def _common_editor_save(self, item_id, df_row_index, column_idx, new_value, editor_window):
+        """Helper to save edit from editor windows."""
+        self.status_df.iloc[df_row_index, column_idx] = new_value
+        current_tree_values = list(self.tree.item(item_id, "values"))
+        current_tree_values[column_idx] = new_value
+        self.tree.item(item_id, values=tuple(current_tree_values))
+        editor_window.destroy()
+        self.editing_window = None
+        self.color_rows()
 
+    def create_notes_editor(self, item_id, df_row_index, column_idx, actual_column_name):
+        self.editing_window = tk.Toplevel(self)
+        self.editing_window.title(f"Edit {actual_column_name}")
+        self.editing_window.transient(self); self.editing_window.grab_set()
 
+        current_value = str(self.status_df.iloc[df_row_index, column_idx])
+        text_widget = tk.Text(self.editing_window, width=60, height=10, font=('Calibri', 12), wrap=tk.WORD)
+        text_widget.insert(tk.END, current_value); text_widget.pack(padx=DEFAULT_PADDING, pady=DEFAULT_PADDING, fill=tk.BOTH, expand=True); text_widget.focus()
+        
+        btn_frame = ttk.Frame(self.editing_window); btn_frame.pack(pady=(0,DEFAULT_PADDING),padx=DEFAULT_PADDING,fill=tk.X)
+        save_btn = ttk.Button(btn_frame, text="Save", style="Accent.TButton", command=lambda: self._common_editor_save(item_id, df_row_index, column_idx, text_widget.get("1.0", tk.END).strip(), self.editing_window))
+        save_btn.pack(side=tk.RIGHT, padx=(5,0))
+        cancel_btn = ttk.Button(btn_frame, text="Cancel", command=lambda: (self.editing_window.destroy(), setattr(self, 'editing_window', None))); cancel_btn.pack(side=tk.RIGHT)
+        self.editing_window.protocol("WM_DELETE_WINDOW", lambda: (self.editing_window.destroy(), setattr(self, 'editing_window', None)))
+        self.wait_window(self.editing_window)
 
-    def delete_selected_row(self, event):
-        """Deletes the currently selected row from the Treeview."""
+    def create_status_dropdown(self, item_id, df_row_index, column_index, column_name):
+        self.editing_window = tk.Toplevel(self)
+        self.editing_window.title(f"Edit {column_name}"); self.editing_window.transient(self); self.editing_window.grab_set()
 
-        selected_item = self.tree.selection()
-        if selected_item:
-            self.tree.delete(selected_item)
-            self.color_rows()
-            self.set_column_widths()
+        current_value = str(self.status_df.iloc[df_row_index, column_index])
+        status_var = StringVar(self.editing_window)
+        status_var.set(current_value if current_value in ALLOWED_STATUS else (ALLOWED_STATUS[0] if ALLOWED_STATUS else ""))
+        
+        inv_num = self.status_df.iloc[df_row_index].get('Invoice #', 'N/A')
+        ttk.Label(self.editing_window, text=f"Status for Invoice {inv_num}:").pack(padx=DEFAULT_PADDING,pady=(DEFAULT_PADDING,5))
+        
+        combo = ttk.Combobox(self.editing_window, textvariable=status_var, values=ALLOWED_STATUS, state="readonly", font=DEFAULT_FONT)
+        combo.pack(padx=DEFAULT_PADDING, pady=5, fill=tk.X); combo.focus()
+        
+        btn_frame = ttk.Frame(self.editing_window); btn_frame.pack(pady=(5,DEFAULT_PADDING),padx=DEFAULT_PADDING,fill=tk.X)
+        save_btn = ttk.Button(btn_frame, text="Save", style="Accent.TButton", command=lambda: self._common_editor_save(item_id, df_row_index, column_index, status_var.get(), self.editing_window))
+        save_btn.pack(side=tk.RIGHT, padx=(5,0))
+        cancel_btn = ttk.Button(btn_frame, text="Cancel", command=lambda: (self.editing_window.destroy(), setattr(self, 'editing_window', None))); cancel_btn.pack(side=tk.RIGHT)
+        self.editing_window.protocol("WM_DELETE_WINDOW", lambda: (self.editing_window.destroy(), setattr(self, 'editing_window', None)))
+        self.wait_window(self.editing_window)
+
+    def delete_selected_row(self, event=None):
+        selected_items = self.tree.selection()
+        if not selected_items: messagebox.showinfo("No Selection", "Please select row(s) to delete."); return
+        if not messagebox.askyesno("Confirm Delete", f"Delete {len(selected_items)} row(s)? This cannot be undone from UI."): return
+
+        df_indices_to_delete = sorted([int(self.tree.item(item_id, "tags")[0]) for item_id in selected_items], reverse=True)
+        
+        for item_id in selected_items: self.tree.delete(item_id)
+        if df_indices_to_delete:
+            self.status_df.drop(index=df_indices_to_delete, inplace=True)
+            self.status_df.reset_index(drop=True, inplace=True)
+        
+        self.re_tag_tree_items(); self.color_rows()
+
+    def re_tag_tree_items(self):
+        for new_df_index, item_id in enumerate(self.tree.get_children()):
+            current_tags = list(self.tree.item(item_id, 'tags'))
+            updated_tags = [tag for tag in current_tags if not tag.isdigit()] # Remove old numeric tags
+            updated_tags.insert(0, str(new_df_index)) # Add new index tag
+            self.tree.item(item_id, tags=tuple(updated_tags))
 
     def set_column_widths(self):
-        """Adjusts column widths to fit content."""
+        self.update_idletasks()
+        if self.status_df is None: return # Guard clause
 
-        for col in self.status_df.columns:
-            self.tree.column(col, width=0, stretch=tk.NO)
-            for item in self.tree.get_children():
-                try:  # Add try-except block
-                    value = self.tree.item(item, "values")[list(self.status_df.columns).index(col)]
-                    col_width = max(self.tree.column(col, 'width'), len(str(value)) * 7 + 30)
-                    self.tree.column(col, width=col_width, anchor=tk.W)  # Left-align
-                except ValueError:
-                    # Handle the case where the column might not exist in this item
-                    pass
-            self.tree.column('#0', width=0)
+        for col_name in self.tree['columns']: # Iterate over actual treeview columns
+            if col_name == '#0': continue # Skip the special #0 column
+
+            final_width = PREFERRED_COLUMN_WIDTHS.get(col_name)
+
+            if final_width is None: # Dynamic calculation
+                try:
+                    heading_text = self.tree.heading(col_name, "text")
+                    temp_label_heading = ttk.Label(self, text=heading_text, font=(DEFAULT_FONT[0], DEFAULT_FONT[1], 'bold'))
+                    heading_width = temp_label_heading.winfo_reqwidth() + 15
+                    temp_label_heading.destroy()
+
+                    max_content_width = 0
+                    # Ensure col_name is valid for status_df if dynamically accessing by name
+                    if col_name in self.status_df.columns:
+                        col_idx = list(self.status_df.columns).index(col_name)
+                        items_to_check = self.tree.get_children()
+                        # Sample for performance if many items
+                        if len(items_to_check) > 50: items_to_check = items_to_check[:30] + items_to_check[-20:]
+
+                        for item_id in items_to_check:
+                            values = self.tree.item(item_id, "values")
+                            if values and col_idx < len(values): # Check col_idx bounds
+                                value_text = str(values[col_idx])
+                                temp_label_val = ttk.Label(self, text=value_text, font=DEFAULT_FONT)
+                                content_width = temp_label_val.winfo_reqwidth()
+                                temp_label_val.destroy()
+                                if content_width > max_content_width: max_content_width = content_width
+                        final_width = max(heading_width, max_content_width + 25)
+                    else: # Column in tree but not in df (should not happen with configure_treeview_columns)
+                        final_width = heading_width # Base on heading if data column is missing
+                except Exception as e:
+                    logging.warning(f"Dynamic width calc error for '{col_name}': {e}")
+                    final_width = 100 # Fallback
+            
+            final_width = max(MIN_COLUMN_WIDTH, int(final_width))
+            final_width = min(MAX_COLUMN_WIDTH, int(final_width))
+            self.tree.column(col_name, width=final_width, anchor=tk.W)
+        self.tree.column('#0', width=0, stretch=tk.NO)
 
     def color_rows(self):
-        """Colors rows based on status."""
+        if self.status_df is None: return
 
-        for item in self.tree.get_children():
+        styles = {"default_status_style": (self.status_colors["default_bg"], self.status_colors["default_fg"]),
+                  "action_needed_style": (self.status_colors["action_needed_bg"], self.status_colors["action_needed_fg"]),
+                  "all_good_style": (self.status_colors["all_good_bg"], self.status_colors["all_good_fg"]),
+                  "closed_style": (self.status_colors["closed_bg"], self.status_colors["closed_fg"]),
+                  "new_style": (self.status_colors["new_bg"], self.status_colors["new_fg"])}
+        for tag_name, (bg, fg) in styles.items(): self.tree.tag_configure(tag_name, background=bg, foreground=fg)
+
+        default_statuses = ["Waiting Measure", "Waiting for materials"]
+        action_statuses = ["Ready to order", "Permit", "Cancelled/Postponed"]
+        good_statuses = ["Ready to dispatch", "In install", "Done"]
+        
+        try: status_column_index = list(self.status_df.columns).index("Status")
+        except ValueError: logging.error("'Status' column missing. Cannot color rows."); return
+
+        for item_id in self.tree.get_children():
             try:
-                status = self.tree.item(item, "values")[list(self.status_df.columns).index("Status")]
-                if status == "Closed":
-                    self.tree.tag_configure("closed", background="lightgray")
-                    self.tree.item(item, tags="closed")
-                elif status == "New":
-                    self.tree.tag_configure("new", background="lightblue")
-                    self.tree.item(item, tags="new")
-                else:
-                    self.tree.tag_configure("open", background="white")
-                    self.tree.item(item, tags="open")
-            except IndexError:
-                pass
+                df_index_tag = self.tree.item(item_id, "tags")[0] # Assumes index tag is first
+                new_tags = [df_index_tag]
+                values = self.tree.item(item_id, "values")
+
+                if values and len(values) > status_column_index:
+                    status = str(values[status_column_index])
+                    if status in default_statuses: new_tags.append("default_status_style")
+                    elif status in action_statuses: new_tags.append("action_needed_style")
+                    elif status in good_statuses: new_tags.append("all_good_style")
+                    elif status == "Closed": new_tags.append("closed_style")
+                    elif status == "New": new_tags.append("new_style")
+                    else: new_tags.append("default_status_style")
+                else: new_tags.append("default_status_style")
+                self.tree.item(item_id, tags=tuple(new_tags))
+            except Exception as e:
+                logging.error(f"Error coloring row {item_id}: {e}")
+                df_idx_tag = self.tree.item(item_id,"tags")[0] if self.tree.item(item_id,"tags") else "err_idx"
+                self.tree.item(item_id, tags=(df_idx_tag, "default_status_style"))
+
+
+if __name__ == '__main__':
+    # This part is for testing the class directly,
+    # your Main.py will be the primary way to run the app.
+    app = OpenJobsApp()
+    app.mainloop()
