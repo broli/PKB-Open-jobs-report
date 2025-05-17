@@ -7,7 +7,7 @@
         
         {
             "name": "Python: Main File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/Main.py",
             "console": "integratedTerminal"

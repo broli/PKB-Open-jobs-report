@@ -179,12 +179,13 @@ class OpenJobsApp(tk.Tk):
         except Exception as e:
             messagebox.showerror("Error", f"Error generating report: {e}")
 
+    
     def on_double_click(self, event):
         """Handles double-clicks on Treeview items to allow editing."""
         item = self.tree.identify_row(event.y)
-        column_id_str = self.tree.identify_column(event.x) # e.g., "#1", "#2"
+        column_id_str = self.tree.identify_column(event.x)  # e.g., "#1", "#2"
 
-        if item and column_id_str: # Check if a valid row and column were clicked
+        if item and column_id_str:  # Check if a valid row and column were clicked
             try:
                 # Convert the column ID string (e.g., "#3") to a 0-based index
                 column_index = int(column_id_str.replace("#", "")) - 1
@@ -193,82 +194,137 @@ class OpenJobsApp(tk.Tk):
                 if 0 <= column_index < len(self.status_df.columns):
                     actual_column_name = self.status_df.columns[column_index]
 
-                    # Now check against the actual column names
-                    if actual_column_name in ("Status", "Notes"):
-                        logging.debug(f"Double-clicked cell is in column: {actual_column_name}")
-                        if self.editing_window:
-                            self.editing_window.destroy()
-                        # Pass the identified item and the original column_id_str (or actual_column_name)
-                        # to create_editing_window. Your create_editing_window already
-                        # correctly derives the actual_column_name from column_id_str.
-                        self.create_editing_window(item, column_id_str)
+                    if self.editing_window: # Destroy any existing editing window
+                        self.editing_window.destroy()
+                        self.editing_window = None
+
+                    #  Direct to specific editor based on column name
+                    if actual_column_name == "Status":
+                        logging.debug(f"Double-clicked 'Status' column. Item: {item}, Column ID: {column_id_str}")
+                        self.create_status_dropdown(item, column_id_str) # Use column_id_str for this function
+                    elif actual_column_name == "Notes":
+                        logging.debug(f"Double-clicked 'Notes' column. Item: {item}, Column Name: {actual_column_name}")
+                        self.create_editing_window(item, actual_column_name) # Use actual_column_name
                     else:
-                        logging.debug(f"Double-clicked column '{actual_column_name}' is not editable.")
+                        logging.debug(f"Double-clicked column '{actual_column_name}' is not configured for editing or has no special editor.")
                 else:
                     logging.warning(f"Invalid column index derived: {column_index}")
 
             except ValueError:
                 logging.error(f"Could not parse column ID: {column_id_str}")
             except IndexError:
-                logging.error(f"Column index out of bounds: {column_index}")
+                logging.error(f"Column index out of bounds: {column_index}") # Should use the derived column_index in the log
         else:
             logging.debug("Double-click was not on a valid cell.")
 
-    def create_editing_window(self, item, column):
-        """Creates a pop-up window for editing a cell."""
-        logging.debug(f"Starting create_editing_window for item: {item}, column: {column}")
-        self.editing_window = tk.Toplevel(self)
-        self.editing_window.title(f"Edit {column[1:]}")
 
-        current_value = self.tree.item(item, "values")[list(self.status_df.columns).index(column[1:])]
+    
+    def create_editing_window(self, item, actual_column_name): # Parameter renamed for clarity
+        """Creates a pop-up window for editing a cell."""
+        logging.debug(f"Starting create_editing_window for item: {item}, column: {actual_column_name}")
+        self.editing_window = tk.Toplevel(self)
+        self.editing_window.title(f"Edit {actual_column_name}") # Use the actual column name
+
+        # Get the index of the column using the actual_column_name
+        try:
+            column_idx = list(self.status_df.columns).index(actual_column_name)
+        except ValueError:
+            logging.error(f"Column name '{actual_column_name}' not found in DataFrame columns.")
+            self.editing_window.destroy() # Close the Toplevel window if column is invalid
+            return
+
+        current_value = self.tree.item(item, "values")[column_idx]
+
         entry = tk.Entry(self.editing_window, width=50)
-        entry.insert(tk.END, current_value)
+        entry.insert(tk.END, str(current_value)) # Ensure current_value is a string for the entry
         entry.pack(padx=DEFAULT_PADDING, pady=DEFAULT_PADDING)
 
         def save_edit():
             new_value = entry.get()
-            values = self.tree.item(item, "values")
-            values[list(self.status_df.columns).index(column[1:])] = new_value
-            self.tree.item(item, values=values)
+            # current_tree_values is a tuple, convert to list for modification
+            current_tree_values_list = list(self.tree.item(item, "values"))
+
+            # Use the same column_idx derived earlier
+            current_tree_values_list[column_idx] = new_value
+
+            # Update the tree item with the modified list (converted back to tuple)
+            self.tree.item(item, values=tuple(current_tree_values_list))
+
             self.editing_window.destroy()
             self.editing_window = None
-            self.color_rows()
-            self.set_column_widths()
+            self.color_rows() # Assuming this function relies on updated tree values
+            # self.set_column_widths() # Consider if this is needed immediately after a single cell edit
 
         save_button = ttk.Button(self.editing_window, text="Save", command=save_edit)
         save_button.pack(pady=DEFAULT_PADDING)
 
-    def create_status_dropdown(self, item, column):
+
+    def create_status_dropdown(self, item, column): # 'column' here is column_id_str e.g., "#10"
         """Creates a dropdown menu for editing the Status."""
         self.editing_window = tk.Toplevel(self)
-        self.editing_window.title(f"Edit {column[1:]}")  # Remove the '#' here
+        
+        column_index = -1 # Initialize to an invalid index
+        try:
+            # Correctly get the column name and index from the Treeview column identifier
+            column_index = int(column[1:]) - 1  # convert to int and -1 for 0 index
+            column_name = self.status_df.columns[column_index] # This will be "Status"
+        except (ValueError, IndexError) as e:
+            logging.error(f"Error deriving column index/name from ID '{column}': {e}")
+            self.editing_window.destroy()
+            return
 
-        # Correctly get the column name from the Treeview column identifier
-        column_index = int(column[1:]) - 1  # convert to int and -1 for 0 index
-        column_name = self.status_df.columns[column_index]
-        current_value = self.tree.item(item, "values")[column_index]
+        self.editing_window.title(f"Edit {column_name}") 
+
+        current_value_tuple = self.tree.item(item, "values")
+        
+        if not (0 <= column_index < len(current_value_tuple)):
+            logging.error(f"Column index {column_index} is out of bounds for item values (length {len(current_value_tuple)}).")
+            self.editing_window.destroy()
+            return
+            
+        current_value = current_value_tuple[column_index]
 
         status_var = StringVar(self.editing_window)
-        status_var.set(current_value)  # Set the current value
+        
+        if str(current_value) in ALLOWED_STATUS: # Ensure comparison with string form if necessary
+            status_var.set(current_value)
+        elif ALLOWED_STATUS: 
+            status_var.set(ALLOWED_STATUS[0])
+        # else: status_var will be empty, which is fine for OptionMenu, or set a default
 
         status_dropdown = OptionMenu(self.editing_window, status_var, *ALLOWED_STATUS)
         status_dropdown.pack(padx=DEFAULT_PADDING, pady=DEFAULT_PADDING)
 
         def save_edit():
             new_value = status_var.get()
-            if new_value in ALLOWED_STATUS:
-                values = self.tree.item(item, "values")
-                values[column_index] = new_value
-                self.tree.item(item, values=values)
+            
+            # 1. Get the current values from the tree item (it's a tuple).
+            current_tree_values_tuple = self.tree.item(item, "values")
+            # 2. Convert this tuple to a list to allow modification.
+            values_list = list(current_tree_values_tuple)
+            
+            # 3. Modify the list at the correct column_index.
+            # Ensure column_index is still valid (it should be from the outer scope)
+            if 0 <= column_index < len(values_list):
+                values_list[column_index] = new_value
+            else:
+                logging.error(f"column_index {column_index} out of bounds during save_edit.")
                 self.editing_window.destroy()
                 self.editing_window = None
-                self.color_rows()
-                self.set_column_widths()
-            else:
-                messagebox.showerror("Error", "Invalid Status")
+                return
+
+            # 4. Update the tree item with the modified list (converted back to a tuple).
+            self.tree.item(item, values=tuple(values_list))
+            
+            self.editing_window.destroy()
+            self.editing_window = None 
+            self.color_rows()
+            self.set_column_widths() # Optional: if status change affects width significantly
 
         save_button = ttk.Button(self.editing_window, text="Save", command=save_edit)
         save_button.pack(pady=DEFAULT_PADDING)
+
+
 
     def delete_selected_row(self, event):
         """Deletes the currently selected row from the Treeview."""
