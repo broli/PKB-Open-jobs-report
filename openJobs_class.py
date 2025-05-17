@@ -203,7 +203,8 @@ class OpenJobsApp(tk.Tk):
         # --- Treeview (Main Data Display) ---
         # Create the Treeview widget with columns defined by EXPECTED_COLUMNS
         # show="headings" hides the default first empty column ('#0')
-        self.tree = ttk.Treeview(self, columns=EXPECTED_COLUMNS, show="headings")
+        # selectmode='extended' allows multiple rows to be selected
+        self.tree = ttk.Treeview(self, columns=EXPECTED_COLUMNS, show="headings", selectmode='extended')
 
         # Configure each column heading and properties
         for col in EXPECTED_COLUMNS:
