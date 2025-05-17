@@ -25,6 +25,8 @@ ALLOWED_STATUS = [
 ]
 # Configure the logging level
 logging.basicConfig(level=logging.DEBUG)  # Set to logging.INFO or logging.ERROR for production
+#logging.basicConfig(level=logging.ERROR)  # Set to logging.INFO or logging.ERROR for production
+#
 
 class OpenJobsApp(tk.Tk):
     def __init__(self):
@@ -77,6 +79,8 @@ class OpenJobsApp(tk.Tk):
         self.populate_treeview()
         self.set_column_widths()
         self.color_rows()
+        self.apply_gridline_style()  # Apply gridlines again just in case
+
 
     def apply_gridline_style(self):
         """Applies the gridline style to the Treeview."""
@@ -178,15 +182,41 @@ class OpenJobsApp(tk.Tk):
     def on_double_click(self, event):
         """Handles double-clicks on Treeview items to allow editing."""
         item = self.tree.identify_row(event.y)
-        column = self.tree.identify_column(event.x)
+        column_id_str = self.tree.identify_column(event.x) # e.g., "#1", "#2"
 
-        if item and column in ("#Status", "#Notes"):
-            if self.editing_window:
-                self.editing_window.destroy()
-            self.create_editing_window(item, column)
+        if item and column_id_str: # Check if a valid row and column were clicked
+            try:
+                # Convert the column ID string (e.g., "#3") to a 0-based index
+                column_index = int(column_id_str.replace("#", "")) - 1
+
+                # Get the actual name of the column from your DataFrame columns list
+                if 0 <= column_index < len(self.status_df.columns):
+                    actual_column_name = self.status_df.columns[column_index]
+
+                    # Now check against the actual column names
+                    if actual_column_name in ("Status", "Notes"):
+                        logging.debug(f"Double-clicked cell is in column: {actual_column_name}")
+                        if self.editing_window:
+                            self.editing_window.destroy()
+                        # Pass the identified item and the original column_id_str (or actual_column_name)
+                        # to create_editing_window. Your create_editing_window already
+                        # correctly derives the actual_column_name from column_id_str.
+                        self.create_editing_window(item, column_id_str)
+                    else:
+                        logging.debug(f"Double-clicked column '{actual_column_name}' is not editable.")
+                else:
+                    logging.warning(f"Invalid column index derived: {column_index}")
+
+            except ValueError:
+                logging.error(f"Could not parse column ID: {column_id_str}")
+            except IndexError:
+                logging.error(f"Column index out of bounds: {column_index}")
+        else:
+            logging.debug("Double-click was not on a valid cell.")
 
     def create_editing_window(self, item, column):
         """Creates a pop-up window for editing a cell."""
+        logging.debug(f"Starting create_editing_window for item: {item}, column: {column}")
         self.editing_window = tk.Toplevel(self)
         self.editing_window.title(f"Edit {column[1:]}")
 
