@@ -534,23 +534,75 @@ class OpenJobsApp(tk.Tk):
         """Sorts the Treeview rows based on the clicked column."""
         if self.status_df is None or self.status_df.empty:
             return
+
+        date_columns = ['Order Date', 'Turn in Date'] # Define which columns are dates
+
         try:
-            data_list = [(self.tree.set(k, col), k) for k in self.tree.get_children('')]
-            def sort_key_func(item):
-                val_str = item[0]
-                if isinstance(val_str, str) and val_str.startswith('$'):
-                    try: return float(val_str.replace('$', '').replace(',', ''))
-                    except ValueError: return val_str.lower()
-                try: return pd.to_datetime(val_str, format=DATE_FORMAT)
-                except (ValueError, TypeError): pass
-                try: return float(val_str)
-                except (ValueError, TypeError): return str(val_str).lower()
-            data_list.sort(key=sort_key_func, reverse=reverse)
-            for index, (val, k) in enumerate(data_list):
-                self.tree.move(k, '', index)
+            items_to_sort = []
+            for item_id in self.tree.get_children(''):
+                sort_value = None
+                if col in date_columns:
+                    try:
+                        # For date columns, get the original data from the DataFrame
+                        df_index_tag = self.tree.item(item_id, "tags")[0]
+                        df_index = int(df_index_tag)
+                        original_value = self.status_df.loc[df_index, col]
+                        # Convert to datetime, coercing errors to NaT (Not a Time)
+                        # This handles actual datetime objects, parseable strings, None, or NaT already.
+                        sort_value = pd.to_datetime(original_value, errors='coerce')
+                    except (IndexError, KeyError, ValueError, TypeError) as e:
+                        logging.warning(f"Could not get original date for sorting column {col}, item {item_id}: {e}. Using displayed value as fallback.")
+                        # Fallback: use the displayed value from the tree if original data access fails
+                        sort_value = self.tree.set(item_id, col)
+                else:
+                    # For non-date columns, use the displayed value from the tree
+                    sort_value = self.tree.set(item_id, col)
+                
+                items_to_sort.append((sort_value, item_id))
+
+            # Define a key function for sorting
+            # This key returns tuples to allow for stable sorting across different data types
+            def sort_key(item_tuple):
+                value = item_tuple[0]  # This is the sort_value determined above
+
+                if isinstance(value, pd.Timestamp): # Actual datetime objects
+                    return (0, value)  # Sort first by type (0), then by timestamp value
+                
+                if pd.isna(value):  # Handles pd.NaT (from dates) or None (possibly from other fallbacks)
+                    # Group NaT/None values. Place them consistently at one end.
+                    # Using a fixed early/late timestamp helps group them.
+                    # (1, ...) ensures they sort after valid Timestamps if Timestamp.min/max is used.
+                    return (1, pd.Timestamp.min if not reverse else pd.Timestamp.max)
+
+                # If not a Timestamp or NaT, it's likely a string (from other columns or date fallback)
+                str_value = str(value) # Ensure it's a string for the following operations
+
+                # Handle currency columns
+                if col in CURRENCY_COLUMNS: # CURRENCY_COLUMNS should be defined in your class or globally
+                    try:
+                        return (2, float(str_value.replace('$', '').replace(',', ''))) # Type 2 for numbers
+                    except ValueError:
+                        return (3, str_value.lower()) # Type 3 for strings (malformed currency)
+
+                # Attempt general numeric conversion for other columns
+                try:
+                    return (2, float(str_value)) # Type 2 for numbers
+                except ValueError:
+                    return (3, str_value.lower()) # Type 3 for strings (default)
+
+            items_to_sort.sort(key=sort_key, reverse=reverse)
+
+            # Reorder items in the treeview
+            for index, (val, item_id) in enumerate(items_to_sort):
+                self.tree.move(item_id, '', index)
+
+            # Update the heading command to toggle sort direction
             self.tree.heading(col, command=lambda _col=col: self.sort_treeview_column(_col, not reverse))
+
         except Exception as e:
             logging.error(f"Error sorting column {col}: {e}", exc_info=True)
+            # Optionally, reset the sort command on error to prevent repeated failures
+            # self.tree.heading(col, text=col, command=lambda _col=col: self.sort_treeview_column(_col, False))
 
     def center_toplevel(self, toplevel_window):
         """Centers a Toplevel window relative to the main application window."""
