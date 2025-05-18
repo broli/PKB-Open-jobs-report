@@ -459,7 +459,7 @@ class ReportingTab(ttk.Frame):
             if not stuck_jobs_df.empty:
                 self._insert_text_with_tags(txt, f"Found {len(stuck_jobs_df)} potentially stuck job(s):", ("indented_item", "warning_text"))
                 for _, job in stuck_jobs_df.iterrows():
-                    self._insert_text_with_tags(txt, f"  - Inv #: {job.get('Invoice #', 'N/A')}, Status: {job.get('Status', 'N/A')}, Age: {job.get('JobAge_days', 0):.0f}d, PC: {job.get('Project Coordinator', 'N/A')}", ("indented_item",))
+                    self._insert_text_with_tags(txt, f"  - Account: {job.get('Account', 'N/A')} - Inv #: {job.get('Invoice #', 'N/A')}, Status: {job.get('Status', 'N/A')}, Age: {job.get('JobAge_days', 0):.0f}d, PC: {job.get('Project Coordinator', 'N/A')}", ("indented_item",))
             else: self._insert_text_with_tags(txt, "No open jobs identified as \"stuck\" in early stages.", ("indented_item",))
         else: self._insert_text_with_tags(txt, "Cannot determine stuck jobs (missing required data).", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
