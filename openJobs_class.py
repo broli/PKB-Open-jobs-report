@@ -95,6 +95,7 @@ class OpenJobsApp(tk.Tk):
         # Apply the Sun Valley Ttk theme (light or dark)
         sv_ttk.set_theme("light")
         self.title("Open Jobs Status Tracker") # Set the window title
+        self.protocol("WM_DELETE_WINDOW", self.quit_app)
 
         # --- Global Font Configuration (Applied BEFORE WIDGET CREATION) ---
         default_font_string = f"{DEFAULT_FONT_FAMILY} {DEFAULT_FONT_SIZE}"
