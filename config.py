@@ -47,7 +47,7 @@ PREFERRED_COLUMN_WIDTHS = {
     'Account': 250,
     'Invoice Total': 100,
     'Balance': 100,
-    'Salesperson': 120,
+    'Salesperson': 120, # This is still here, but not used in reporting_tab stats
     'Project Coordinator': 150,
     'Status': 200,
     'Notes': 350
@@ -71,6 +71,10 @@ STATUS_COLORS = {
 LOG_LEVEL = logging.DEBUG  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
 
+# --- Reporting Tab UI ---
+REPORT_SUB_TAB_BG_COLOR = "#F0F8FF"
+REPORT_TEXT_FG_COLOR = "black" 
+
 # --- Application Information (Optional) ---
 APP_NAME = "Open Jobs Status Tracker"
-APP_VERSION = "1.1.0" # Example version
+APP_VERSION = "1.2.0" # Example version update
