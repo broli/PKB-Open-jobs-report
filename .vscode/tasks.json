@@ -1,0 +1,60 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build App (OneFile, Windowed)",
+            "type": "shell",
+            "command": "pyinstaller",
+            "args": [
+                "--noconfirm", // Overwrite output directory without asking
+                "--log-level=WARN",
+                "--onefile",
+                "--windowed", // To disable the console
+                "--name=PKBOpenJobsStatusTracker", // Set the output name
+                // "--icon=your_icon.ico", // Uncomment and set your icon path if you have one
+                // "--add-data=path/to/your_data_file:destination_folder_in_bundle", // If you have data files
+                "Main.py" // Your main script
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true // Makes this the default build task (Ctrl+Shift+B)
+            },
+            "presentation": {
+                "reveal": "always", // Show the terminal output
+                "panel": "new" // Run in a new terminal panel
+            },
+            "problemMatcher": [] // You can add problem matchers if PyInstaller outputs them in a structured way
+        },
+        {
+            "label": "Build App (OneDir, Debug Console)",
+            "type": "shell",
+            "command": "pyinstaller",
+            "args": [
+                "--noconfirm",
+                "--log-level=INFO",
+                "--onedir", // For easier debugging
+                // No --windowed, so console appears
+                "--name=OpenJobsStatusTracker_Debug",
+                "Main.py"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean PyInstaller Output",
+            "type": "shell",
+            "command": "rm", // Use 'rd /s /q' on Windows for build, dist, and .spec file
+            "args": [
+                "-rf",
+                "build/",
+                "dist/",
+                "*.spec" // Or your specific spec file name e.g., Main.spec
+            ],
+            "problemMatcher": []
+        }
+    ]
+}
