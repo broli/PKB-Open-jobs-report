@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .report-container { max-width: 900px; margin: auto; padding: 20px; border: 1px solid #ddd; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2, h3 { color: #333; }
+        p { margin-bottom: 0.5em; margin-top: 0.2em; }
+        .chart-image { max-width: 100%; height: auto; border: 1px solid #eee; margin-top: 10px; margin-bottom: 20px; }
+        .report-header { font-family: 'Calibri', sans-serif; font-size: 16pt; font-weight: bold; text-decoration: underline; color: #003366; margin-top: 1.5em; margin-bottom: 0.8em; }
+        .report-subheader { font-family: 'Calibri', sans-serif; font-size: 14pt; font-weight: bold; color: black; margin-top: 1.2em; margin-bottom: 0.6em; }
+        .report-bold-metric { font-family: 'Calibri', sans-serif; font-size: 12pt; font-weight: bold; color: black; }
+        .report-key-value-label { font-family: 'Calibri', sans-serif; font-size: 12pt; color: #404040; }
+        .report-indented-item { font-family: 'Calibri', sans-serif; font-size: 12pt; color: black; margin-left: 25px; }
+        .report-warning-text { font-family: 'Calibri', sans-serif; font-size: 12pt; color: #990000; font-style: italic; }
+        .coordinator-section { margin-top: 20px; padding-top: 15px; border-top: 1px dashed #ccc; }
+    </style>
+</head>
+<body>
+<div class="report-container">
+<h1>Open Jobs Report</h1>
+<h2>Overall Pipeline Health</h2>
+<p class="report-header">Overall Snapshot (2025-05-20 00:00:00)</p>
+<br>
+<p>--------------------------------------------------</p>
+<p class="report-key-value-label">Total Jobs in Current Dataset: </p>
+<p class="report-bold-metric">56</p>
+<br>
+<p class="report-key-value-label">Currently Open Jobs (Active): </p>
+<p class="report-bold-metric">53</p>
+<br>
+<br>
+<p class="report-subheader">Open Job Status Counts (See Chart for Details):</p>
+<br>
+<p class="report-indented-item">Waiting for materials: 17, New: 11, Waiting Measure: 10, ...</p>
+<br>
+<br>
+<p class="report-subheader">Financial Summary (All Open Jobs - See Chart for Details):</p>
+<br>
+<p class="report-indented-item report-key-value-label">Total Invoice Amount: </p>
+<p class="report-bold-metric report-indented-item">$1,168,559.57</p>
+<br>
+<p class="report-indented-item report-key-value-label">Total Collected: </p>
+<p class="report-bold-metric report-indented-item">$342,413.26</p>
+<br>
+<p class="report-indented-item report-key-value-label">Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$826,146.31</p>
+<br>
+<br>
+<p class="report-subheader">Work-in-Progress Timing (All Open Jobs, from Turn-in Date):</p>
+<br>
+<p>-----------------------------------------------------------</p>
+<p class="report-indented-item report-key-value-label">Average Age (since turn-in): </p>
+<p class="report-bold-metric report-indented-item">26.19 days</p>
+<br>
+<p class="report-indented-item report-key-value-label">Oldest Project (since turn-in):</p>
+<br>
+<p class="report-bold-metric report-indented-item">  - Invoice #: 1931492</p>
+<br>
+<p class="report-indented-item">  - Turn-in Date: Jan-24</p>
+<br>
+<p class="report-bold-metric report-indented-item">  - Age: 116 days</p>
+<br>
+<p class="report-indented-item report-key-value-label">Open Job Age Distribution (since turn-in):</p>
+<br>
+<p class="report-indented-item">  - Job Age: 0-7 Days (First Week of Job Age): </p>
+<p class="report-bold-metric report-indented-item">8 jobs</p>
+<br>
+<p class="report-indented-item">  - Job Age: 8-21 Days (Job is 2-3 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">13 jobs</p>
+<br>
+<p class="report-indented-item">  - Job Age: 22-49 Days (Job is 4-7 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">19 jobs</p>
+<br>
+<p class="report-indented-item">  - Job Age: 50-56 Days (Job is 8 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">1 jobs</p>
+<br>
+<p class="report-indented-item">  - Job Age: Over 56 Days (Job is Older than 8 Weeks): </p>
+<p class="report-bold-metric report-indented-item">10 jobs</p>
+<br>
+<br>
+<p class="report-subheader">"Stuck" Jobs in Early Stages (Open Jobs &gt; 3 Weeks in early status):</p>
+<br>
+<p>---------------------------------------------------------------------</p>
+<p class="report-indented-item report-warning-text">Found 7 potentially stuck job(s):</p>
+<br>
+<p class="report-indented-item">  - Account: MIKE TOKMAKOFF 1944588 - PO #: 1944588, Status: New, Age: 95d, PC: Maria Cabuya</p>
+<br>
+<p class="report-indented-item">  - Account: VIRGINIA TRUJILLO 1983312 - PO #: 1983312, Status: Ready to order, Age: 56d, PC: Aldi  Delacruz</p>
+<br>
+<p class="report-indented-item">  - Account: JAVIER ESPINOZA 1998368 - PO #: 1998368, Status: Waiting Measure, Age: 68d, PC: Aldi  Delacruz</p>
+<br>
+<p class="report-indented-item">  - Account: PAMELA ARAKAWA 2055742 - PO #: 2055742, Status: New, Age: 28d, PC: Chery Catulong</p>
+<br>
+<p class="report-indented-item">  - Account: OSCAR ALVAREZ 2063497 - PO #: 2063497, Status: Waiting Measure, Age: 22d, PC: Chery Catulong</p>
+<br>
+<p class="report-indented-item">  - Account: JOE FRIEDMAN 2067783 - PO #: 2067783, Status: Waiting Measure, Age: 27d, PC: Aldi  Delacruz</p>
+<br>
+<p class="report-indented-item">  - Account: ERNESTO CAMANAG 2069683 - PO #: 2069683, Status: Ready to order, Age: 25d, PC: Carlos Ferrabone</p>
+<br>
+<br>
+<p class="report-subheader">High-Value Aging Jobs (Open Jobs &gt; 8 Weeks &amp; Balance &gt; $10,000):</p>
+<br>
+<p>-------------------------------------------------------------------</p>
+<p class="report-indented-item report-warning-text">Found 8 high-value aging job(s):</p>
+<br>
+<p class="report-indented-item">  - PAT WELCH 1931492 - PO #: 1931492, Remaining Balance: $11,779.76 (Job Total: $20,632.93), Age: 116d, PC: Carlos Ferrabone</p>
+<br>
+<p class="report-indented-item">  - ANGELA MARTIN 1933123 - PO #: 1933123, Remaining Balance: $18,588.99 (Job Total: $39,267.49), Age: 92d, PC: Carlos Ferrabone</p>
+<br>
+<p class="report-indented-item">  - AHASSIM RASHID 1935305 - PO #: 1935305, Remaining Balance: $18,306.16 (Job Total: $36,612.33), Age: 113d, PC: Carlos Ferrabone</p>
+<br>
+<p class="report-indented-item">  - MIKE TOKMAKOFF 1944588 - PO #: 1944588, Remaining Balance: $40,611.73 (Job Total: $96,611.73), Age: 95d, PC: Maria Cabuya</p>
+<br>
+<p class="report-indented-item">  - RICHARD ZUNIGA 1972850 - PO #: 1972850, Remaining Balance: $12,800.00 (Job Total: $24,300.00), Age: 82d, PC: Carlos Ferrabone</p>
+<br>
+<p class="report-indented-item">  - WILL LOPEZ 1974370 - PO #: 1974370, Remaining Balance: $11,298.59 (Job Total: $19,580.99), Age: 77d, PC: Chery Catulong</p>
+<br>
+<p class="report-indented-item">  - JAVIER ESPINOZA 1998368 - PO #: 1998368, Remaining Balance: $14,000.00 (Job Total: $15,000.00), Age: 68d, PC: Aldi  Delacruz</p>
+<br>
+<p class="report-indented-item">  - TAMAR MORKOS 2018200 - PO #: 2018200, Remaining Balance: $12,500.00 (Job Total: $13,500.00), Age: 57d, PC: Janeth Macayayong</p>
+<br>
+<br>
+<p class="report-subheader">Total Financial Value by Age Bucket (Open Jobs):</p>
+<br>
+<p>------------------------------------------------</p>
+<p class="report-indented-item report-key-value-label">- Job Age: 0-7 Days (First Week of Job Age) (8.0 jobs):</p>
+<p class="report-indented-item">  - Total Invoice Value: </p>
+<p class="report-bold-metric report-indented-item">$129,564.23</p>
+<br>
+<p class="report-indented-item">  - Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$122,564.23</p>
+<br>
+<p class="report-indented-item report-key-value-label">- Job Age: 8-21 Days (Job is 2-3 Weeks Old) (13.0 jobs):</p>
+<p class="report-indented-item">  - Total Invoice Value: </p>
+<p class="report-bold-metric report-indented-item">$293,040.78</p>
+<br>
+<p class="report-indented-item">  - Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$272,021.48</p>
+<br>
+<p class="report-indented-item report-key-value-label">- Job Age: 22-49 Days (Job is 4-7 Weeks Old) (19.0 jobs):</p>
+<p class="report-indented-item">  - Total Invoice Value: </p>
+<p class="report-bold-metric report-indented-item">$361,977.01</p>
+<br>
+<p class="report-indented-item">  - Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$229,145.42</p>
+<br>
+<p class="report-indented-item report-key-value-label">- Job Age: 50-56 Days (Job is 8 Weeks Old) (1.0 jobs):</p>
+<p class="report-indented-item">  - Total Invoice Value: </p>
+<p class="report-bold-metric report-indented-item">$17,296.30</p>
+<br>
+<p class="report-indented-item">  - Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$16,546.30</p>
+<br>
+<p class="report-indented-item report-key-value-label">- Job Age: Over 56 Days (Job is Older than 8 Weeks) (10.0 jobs):</p>
+<p class="report-indented-item">  - Total Invoice Value: </p>
+<p class="report-bold-metric report-indented-item">$302,900.71</p>
+<br>
+<p class="report-indented-item">  - Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$152,978.61</p>
+<br>
+<br>
+<br>
+<div class="coordinator-section">
+<h2>Project Coordinator Details</h2>
+<h3>Coordinator: Aldi  Delacruz</h3>
+<p class="report-header">Statistics for Aldi  Delacruz (2025-05-20 00:00:00)</p>
+<br>
+<p>----------------------------------------------------------</p>
+<p class="report-key-value-label">Total Open Jobs Assigned: </p>
+<p class="report-bold-metric">10</p>
+<br>
+<br>
+<p class="report-subheader">Open Jobs by Current Status:</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Waiting for materials: </p>
+<p class="report-bold-metric report-indented-item">4</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Waiting Measure: </p>
+<p class="report-bold-metric report-indented-item">3</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - New: </p>
+<p class="report-bold-metric report-indented-item">2</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Ready to order: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<br>
+<p class="report-subheader">Financial Summary (for these open jobs):</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Invoice Amount: </p>
+<p class="report-bold-metric report-indented-item">$219,851.87</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Collected: </p>
+<p class="report-bold-metric report-indented-item">$33,373.91</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$186,477.96</p>
+<br>
+<br>
+<p class="report-subheader">Work-in-Progress Timing (for these open jobs, from Turn-in Date):</p>
+<br>
+<p class="report-indented-item report-key-value-label">Job Age Distribution:</p>
+<br>
+<p class="report-indented-item">    - Job Age: 0-7 Days (First Week of Job Age): </p>
+<p class="report-bold-metric report-indented-item">1 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 8-21 Days (Job is 2-3 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">3 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 22-49 Days (Job is 4-7 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">4 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 50-56 Days (Job is 8 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">1 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: Over 56 Days (Job is Older than 8 Weeks): </p>
+<p class="report-bold-metric report-indented-item">1 jobs</p>
+<br>
+<br>
+<p class="report-indented-item report-key-value-label">Total Days in Progress (sum of job ages): </p>
+<p class="report-bold-metric report-indented-item">309 days</p>
+<br>
+<br>
+<br>
+<br>
+<h3>Coordinator: Carlos Ferrabone</h3>
+<p class="report-header">Statistics for Carlos Ferrabone (2025-05-20 00:00:00)</p>
+<br>
+<p>----------------------------------------------------------</p>
+<p class="report-key-value-label">Total Open Jobs Assigned: </p>
+<p class="report-bold-metric">14</p>
+<br>
+<br>
+<p class="report-subheader">Open Jobs by Current Status:</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Waiting for materials: </p>
+<p class="report-bold-metric report-indented-item">5</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - In install: </p>
+<p class="report-bold-metric report-indented-item">4</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Ready to order: </p>
+<p class="report-bold-metric report-indented-item">2</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Done: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - New: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Waiting Measure: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<br>
+<p class="report-subheader">Financial Summary (for these open jobs):</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Invoice Amount: </p>
+<p class="report-bold-metric report-indented-item">$313,497.29</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Collected: </p>
+<p class="report-bold-metric report-indented-item">$120,782.21</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$192,715.08</p>
+<br>
+<br>
+<p class="report-subheader">Work-in-Progress Timing (for these open jobs, from Turn-in Date):</p>
+<br>
+<p class="report-indented-item report-key-value-label">Job Age Distribution:</p>
+<br>
+<p class="report-indented-item">    - Job Age: 0-7 Days (First Week of Job Age): </p>
+<p class="report-bold-metric report-indented-item">1 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 8-21 Days (Job is 2-3 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">3 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 22-49 Days (Job is 4-7 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">5 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 50-56 Days (Job is 8 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: Over 56 Days (Job is Older than 8 Weeks): </p>
+<p class="report-bold-metric report-indented-item">5 jobs</p>
+<br>
+<br>
+<p class="report-indented-item report-key-value-label">Total Days in Progress (sum of job ages): </p>
+<p class="report-bold-metric report-indented-item">728 days</p>
+<br>
+<br>
+<br>
+<br>
+<h3>Coordinator: Chery Catulong</h3>
+<p class="report-header">Statistics for Chery Catulong (2025-05-20 00:00:00)</p>
+<br>
+<p>----------------------------------------------------------</p>
+<p class="report-key-value-label">Total Open Jobs Assigned: </p>
+<p class="report-bold-metric">12</p>
+<br>
+<br>
+<p class="report-subheader">Open Jobs by Current Status:</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Waiting for materials: </p>
+<p class="report-bold-metric report-indented-item">4</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Waiting Measure: </p>
+<p class="report-bold-metric report-indented-item">4</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Permit: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Ready to dispatch: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - New: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Ready to order: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<br>
+<p class="report-subheader">Financial Summary (for these open jobs):</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Invoice Amount: </p>
+<p class="report-bold-metric report-indented-item">$277,083.36</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Collected: </p>
+<p class="report-bold-metric report-indented-item">$71,750.11</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$205,333.25</p>
+<br>
+<br>
+<p class="report-subheader">Work-in-Progress Timing (for these open jobs, from Turn-in Date):</p>
+<br>
+<p class="report-indented-item report-key-value-label">Job Age Distribution:</p>
+<br>
+<p class="report-indented-item">    - Job Age: 0-7 Days (First Week of Job Age): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 8-21 Days (Job is 2-3 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">5 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 22-49 Days (Job is 4-7 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">5 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 50-56 Days (Job is 8 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: Over 56 Days (Job is Older than 8 Weeks): </p>
+<p class="report-bold-metric report-indented-item">1 jobs</p>
+<br>
+<br>
+<p class="report-indented-item report-key-value-label">Total Days in Progress (sum of job ages): </p>
+<p class="report-bold-metric report-indented-item">88 days</p>
+<br>
+<br>
+<br>
+<br>
+<h3>Coordinator: Janeth Macayayong</h3>
+<p class="report-header">Statistics for Janeth Macayayong (2025-05-20 00:00:00)</p>
+<br>
+<p>----------------------------------------------------------</p>
+<p class="report-key-value-label">Total Open Jobs Assigned: </p>
+<p class="report-bold-metric">10</p>
+<br>
+<br>
+<p class="report-subheader">Open Jobs by Current Status:</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Waiting for materials: </p>
+<p class="report-bold-metric report-indented-item">4</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Waiting Measure: </p>
+<p class="report-bold-metric report-indented-item">2</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Permit: </p>
+<p class="report-bold-metric report-indented-item">2</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Ready to dispatch: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - New: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<br>
+<p class="report-subheader">Financial Summary (for these open jobs):</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Invoice Amount: </p>
+<p class="report-bold-metric report-indented-item">$161,260.69</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Collected: </p>
+<p class="report-bold-metric report-indented-item">$48,643.76</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$112,616.93</p>
+<br>
+<br>
+<p class="report-subheader">Work-in-Progress Timing (for these open jobs, from Turn-in Date):</p>
+<br>
+<p class="report-indented-item report-key-value-label">Job Age Distribution:</p>
+<br>
+<p class="report-indented-item">    - Job Age: 0-7 Days (First Week of Job Age): </p>
+<p class="report-bold-metric report-indented-item">1 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 8-21 Days (Job is 2-3 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">2 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 22-49 Days (Job is 4-7 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">5 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 50-56 Days (Job is 8 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: Over 56 Days (Job is Older than 8 Weeks): </p>
+<p class="report-bold-metric report-indented-item">2 jobs</p>
+<br>
+<br>
+<p class="report-indented-item report-key-value-label">Total Days in Progress (sum of job ages): </p>
+<p class="report-bold-metric report-indented-item">322 days</p>
+<br>
+<br>
+<br>
+<br>
+<h3>Coordinator: Maria Cabuya</h3>
+<p class="report-header">Statistics for Maria Cabuya (2025-05-20 00:00:00)</p>
+<br>
+<p>----------------------------------------------------------</p>
+<p class="report-key-value-label">Total Open Jobs Assigned: </p>
+<p class="report-bold-metric">2</p>
+<br>
+<br>
+<p class="report-subheader">Open Jobs by Current Status:</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - Permit: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - New: </p>
+<p class="report-bold-metric report-indented-item">1</p>
+<br>
+<br>
+<p class="report-subheader">Financial Summary (for these open jobs):</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Invoice Amount: </p>
+<p class="report-bold-metric report-indented-item">$115,338.27</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Collected: </p>
+<p class="report-bold-metric report-indented-item">$63,863.27</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$51,475.00</p>
+<br>
+<br>
+<p class="report-subheader">Work-in-Progress Timing (for these open jobs, from Turn-in Date):</p>
+<br>
+<p class="report-indented-item report-key-value-label">Job Age Distribution:</p>
+<br>
+<p class="report-indented-item">    - Job Age: 0-7 Days (First Week of Job Age): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 8-21 Days (Job is 2-3 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 22-49 Days (Job is 4-7 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 50-56 Days (Job is 8 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: Over 56 Days (Job is Older than 8 Weeks): </p>
+<p class="report-bold-metric report-indented-item">1 jobs</p>
+<br>
+<br>
+<p class="report-indented-item report-key-value-label">Total Days in Progress (sum of job ages): </p>
+<p class="report-bold-metric report-indented-item">-63 days</p>
+<br>
+<br>
+<br>
+<br>
+<h3>Coordinator: New Sale</h3>
+<p class="report-header">Statistics for New Sale (2025-05-20 00:00:00)</p>
+<br>
+<p>----------------------------------------------------------</p>
+<p class="report-key-value-label">Total Open Jobs Assigned: </p>
+<p class="report-bold-metric">5</p>
+<br>
+<br>
+<p class="report-subheader">Open Jobs by Current Status:</p>
+<br>
+<p class="report-indented-item report-key-value-label">  - New: </p>
+<p class="report-bold-metric report-indented-item">5</p>
+<br>
+<br>
+<p class="report-subheader">Financial Summary (for these open jobs):</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Invoice Amount: </p>
+<p class="report-bold-metric report-indented-item">$81,528.09</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Collected: </p>
+<p class="report-bold-metric report-indented-item">$4,000.00</p>
+<br>
+<p class="report-indented-item report-key-value-label">  Total Remaining Balance: </p>
+<p class="report-bold-metric report-indented-item">$77,528.09</p>
+<br>
+<br>
+<p class="report-subheader">Work-in-Progress Timing (for these open jobs, from Turn-in Date):</p>
+<br>
+<p class="report-indented-item report-key-value-label">Job Age Distribution:</p>
+<br>
+<p class="report-indented-item">    - Job Age: 0-7 Days (First Week of Job Age): </p>
+<p class="report-bold-metric report-indented-item">5 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 8-21 Days (Job is 2-3 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 22-49 Days (Job is 4-7 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: 50-56 Days (Job is 8 Weeks Old): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<p class="report-indented-item">    - Job Age: Over 56 Days (Job is Older than 8 Weeks): </p>
+<p class="report-bold-metric report-indented-item">0 jobs</p>
+<br>
+<br>
+<p class="report-indented-item report-key-value-label">Total Days in Progress (sum of job ages): </p>
+<p class="report-bold-metric report-indented-item">4 days</p>
+<br>
+<br>
+<br>
+<br>
+</div>
+<h2>Charts</h2>
+<div>
+<h3>Open Jobs by Status</h3>
+<img src="exported_report_images/overall_status_chart.png" alt="Overall Status Chart" class="chart-image">
+</div>
+<div>
+<h3>Financial Summary</h3>
+<img src="exported_report_images/overall_financial_summary_chart.png" alt="Financial Summary Chart" class="chart-image">
+</div>
+</div>
+</body>
+</html>

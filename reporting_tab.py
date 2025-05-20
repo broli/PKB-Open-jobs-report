@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import pandas as pd
 import logging
+import os # Added for potential path operations, though savefig handles full paths
 
 import config
 
@@ -21,8 +22,11 @@ class ReportingTab(ttk.Frame):
         self.coordinator_tabs_widgets = {} 
 
         # --- For Matplotlib Charts ---
+        self.overall_status_chart_figure = None # Store the figure object explicitly
         self.overall_status_chart_canvas_widget = None 
         self.overall_status_chart_frame = None 
+        
+        self.overall_financial_summary_chart_figure = None # Store the figure object explicitly
         self.overall_financial_summary_chart_canvas_widget = None 
         self.overall_financial_summary_chart_frame = None 
         
@@ -237,6 +241,7 @@ class ReportingTab(ttk.Frame):
         if hasattr(self, 'overall_status_chart_canvas_widget') and self.overall_status_chart_canvas_widget:
             self.overall_status_chart_canvas_widget.get_tk_widget().destroy()
             self.overall_status_chart_canvas_widget = None
+            self.overall_status_chart_figure = None # Clear figure reference
         for widget in parent_frame.winfo_children(): widget.destroy() # Clear placeholder
 
         if open_jobs_df is None or open_jobs_df.empty or 'Status' not in open_jobs_df.columns:
@@ -251,8 +256,8 @@ class ReportingTab(ttk.Frame):
         try:
             # Dynamically adjust figure height based on the number of statuses
             fig_height = max(3.5, len(status_counts) * 0.5) # Min height, scales with items
-            fig = Figure(figsize=(6, fig_height), dpi=90) 
-            ax = fig.add_subplot(111)
+            self.overall_status_chart_figure = Figure(figsize=(6, fig_height), dpi=90) # Store figure
+            ax = self.overall_status_chart_figure.add_subplot(111)
             
             # Use a pleasant color map
             colors = plt.cm.get_cmap('Pastel2', len(status_counts)) 
@@ -270,14 +275,14 @@ class ReportingTab(ttk.Frame):
             ax.spines['bottom'].set_color('darkgrey')
 
             # Adjust layout to prevent labels from being cut off
-            fig.subplots_adjust(left=0.30, right=0.95, top=0.90, bottom=0.15) 
+            self.overall_status_chart_figure.subplots_adjust(left=0.30, right=0.95, top=0.90, bottom=0.15) 
             
             # Add value labels to bars
             for i, v in enumerate(status_counts):
                 ax.text(v + 0.2, i, str(v), color='black', va='center', fontweight='normal', fontsize=config.DEFAULT_FONT_SIZE -1)
             
             # Embed chart in Tkinter
-            self.overall_status_chart_canvas_widget = FigureCanvasTkAgg(fig, master=parent_frame)
+            self.overall_status_chart_canvas_widget = FigureCanvasTkAgg(self.overall_status_chart_figure, master=parent_frame)
             self.overall_status_chart_canvas_widget.draw()
             canvas_tk_widget = self.overall_status_chart_canvas_widget.get_tk_widget()
             canvas_tk_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True) 
@@ -289,6 +294,7 @@ class ReportingTab(ttk.Frame):
         except Exception as e:
             logging.error(f"ReportingTab: Error creating status distribution chart: {e}", exc_info=True)
             ttk.Label(parent_frame, text=f"Error creating chart: {e}").pack(expand=True, fill=tk.BOTH)
+            self.overall_status_chart_figure = None # Ensure figure is None on error
 
     def _create_financial_summary_chart(self, parent_frame, open_jobs_df):
         """Creates and embeds a pie chart for the financial summary."""
@@ -296,6 +302,7 @@ class ReportingTab(ttk.Frame):
         if hasattr(self, 'overall_financial_summary_chart_canvas_widget') and self.overall_financial_summary_chart_canvas_widget:
             self.overall_financial_summary_chart_canvas_widget.get_tk_widget().destroy()
             self.overall_financial_summary_chart_canvas_widget = None
+            self.overall_financial_summary_chart_figure = None # Clear figure reference
         for widget in parent_frame.winfo_children(): widget.destroy()
 
         if open_jobs_df is None or open_jobs_df.empty or \
@@ -330,9 +337,10 @@ class ReportingTab(ttk.Frame):
              return
 
         try:
-            fig = Figure(figsize=(6, 4.5), dpi=90) 
-            ax = fig.add_subplot(111) 
+            self.overall_financial_summary_chart_figure = Figure(figsize=(6, 4.5), dpi=90) # Store figure
+            ax = self.overall_financial_summary_chart_figure.add_subplot(111) 
             
+            # Corrected line: unpack to wedges, texts, autotexts
             wedges, texts, autotexts = ax.pie(
                 pie_values, 
                 autopct='%1.1f%%', 
@@ -356,9 +364,9 @@ class ReportingTab(ttk.Frame):
                       title_fontsize=config.DEFAULT_FONT_SIZE)
 
             # Adjust subplot to make room for the legend
-            fig.subplots_adjust(left=0.05, bottom=0.05, right=0.70, top=0.88) 
+            self.overall_financial_summary_chart_figure.subplots_adjust(left=0.05, bottom=0.05, right=0.70, top=0.88) 
 
-            self.overall_financial_summary_chart_canvas_widget = FigureCanvasTkAgg(fig, master=parent_frame)
+            self.overall_financial_summary_chart_canvas_widget = FigureCanvasTkAgg(self.overall_financial_summary_chart_figure, master=parent_frame)
             self.overall_financial_summary_chart_canvas_widget.draw()
             canvas_tk_widget = self.overall_financial_summary_chart_canvas_widget.get_tk_widget()
             canvas_tk_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True) 
@@ -369,7 +377,10 @@ class ReportingTab(ttk.Frame):
         except Exception as e:
             logging.error(f"ReportingTab: Error creating financial summary pie chart: {e}", exc_info=True)
             ttk.Label(parent_frame, text=f"Error creating financial chart: {e}").pack(expand=True, fill=tk.BOTH)
+            self.overall_financial_summary_chart_figure = None # Ensure figure is None on error
 
+    # ... (Keep existing methods like display_all_stats, _populate_overall_pipeline_tab, _populate_coordinator_tab) ...
+    # ... (Make sure they are not removed or unintentionally altered) ...
 
     def display_all_stats(self):
         """Main function to refresh and display all statistics and charts."""
@@ -387,12 +398,14 @@ class ReportingTab(ttk.Frame):
             if hasattr(self, 'overall_status_chart_canvas_widget') and self.overall_status_chart_canvas_widget:
                 self.overall_status_chart_canvas_widget.get_tk_widget().destroy()
                 self.overall_status_chart_canvas_widget = None
+                self.overall_status_chart_figure = None
                 for widget in self.overall_status_chart_frame.winfo_children(): widget.destroy()
                 ttk.Label(self.overall_status_chart_frame, text="No data for status chart.").pack(expand=True, fill=tk.BOTH)
             
             if hasattr(self, 'overall_financial_summary_chart_canvas_widget') and self.overall_financial_summary_chart_canvas_widget:
                 self.overall_financial_summary_chart_canvas_widget.get_tk_widget().destroy()
                 self.overall_financial_summary_chart_canvas_widget = None
+                self.overall_financial_summary_chart_figure = None
                 for widget in self.overall_financial_summary_chart_frame.winfo_children(): widget.destroy()
                 ttk.Label(self.overall_financial_summary_chart_frame, text="No data for financial summary chart.").pack(expand=True, fill=tk.BOTH)
             
@@ -664,6 +677,106 @@ class ReportingTab(ttk.Frame):
                 self.overall_stats_text_area.delete('1.0', tk.END)
                 self._insert_text_with_tags(self.overall_stats_text_area, "No data loaded in the 'Data Management' tab. Please load data first, then click 'Refresh All Statistics' on this tab.", ("warning_text",))
                 self.overall_stats_text_area.config(state=tk.DISABLED)
-        # Optionally, you could trigger a refresh here if desired,
-        # but the button provides explicit control.
-        # self.display_all_stats() 
+
+    # --- Methods for HTML Export (Phase 3) ---
+    def get_formatted_text_content(self, section_key="overall"):
+        """
+        Extracts formatted text content from the specified text area.
+        Args:
+            section_key (str): "overall" for the main summary, or a project
+                               coordinator's safe name for their specific tab.
+        Returns:
+            list: A list of (text_segment, list_of_applied_tkinter_tags) tuples.
+                  Returns an empty list if the section is not found or has no content.
+        """
+        logging.debug(f"ReportingTab: get_formatted_text_content called for section_key: '{section_key}'")
+        text_widget = None
+        if section_key == "overall":
+            text_widget = self.overall_stats_text_area
+        else:
+            text_widget = self.coordinator_tabs_widgets.get(section_key)
+
+        if not text_widget or not text_widget.winfo_exists():
+            logging.warning(f"ReportingTab: Text widget for section '{section_key}' not found or does not exist.")
+            return []
+
+        # Ensure the widget is not empty
+        if text_widget.index(tk.END) == "1.0": # Widget is empty if index END is same as START
+             logging.info(f"ReportingTab: Text widget for section '{section_key}' is empty.")
+             return []
+        
+        # The dump method with text=True and tag=True gives a sequence of text and tag changes.
+        # We need to process this to associate active tags with each text segment.
+        content_with_tags = []
+        current_tags = set()
+        
+        # Iterate through the dump of the text widget
+        # The dump provides (event_type, event_value, index)
+        # event_type can be 'text', 'tagon', 'tagoff', or a specific tag name if only that tag is dumped.
+        # With text=True and tag=True, we expect 'text', 'tagon', 'tagoff'.
+        try:
+            dump_output = text_widget.dump("1.0", tk.END, text=True, tag=True)
+            for key, value, index in dump_output:
+                if key == "text":
+                    # When a text segment is encountered, associate it with the currently active tags.
+                    # We must handle newlines within the text segment if we want to preserve paragraph structure.
+                    # For now, let's keep it simple as per the initial plan.
+                    if value: # Ensure non-empty text segment
+                        content_with_tags.append((value, sorted(list(current_tags))))
+                elif key == "tagon":
+                    # A tag is turned on, add it to the set of current tags.
+                    current_tags.add(value)
+                elif key == "tagoff":
+                    # A tag is turned off, remove it from the set.
+                    current_tags.discard(value)
+            logging.info(f"ReportingTab: Successfully extracted {len(content_with_tags)} text segments for section '{section_key}'.")
+        except Exception as e:
+            logging.error(f"ReportingTab: Error during text_widget.dump or processing for section '{section_key}': {e}", exc_info=True)
+            return []
+            
+        return content_with_tags
+
+    def save_chart_as_image(self, chart_key, output_image_path):
+        """
+        Saves the specified chart as an image file.
+        Args:
+            chart_key (str): Identifier for the chart (e.g., "overall_status_chart", 
+                             "overall_financial_summary_chart").
+            output_image_path (str): The full path where the image should be saved.
+        Returns:
+            bool: True if the chart was saved successfully, False otherwise.
+        """
+        logging.debug(f"ReportingTab: save_chart_as_image called for chart_key: '{chart_key}' at path: '{output_image_path}'")
+        figure_to_save = None
+
+        if chart_key == "overall_status_chart":
+            figure_to_save = self.overall_status_chart_figure
+        elif chart_key == "overall_financial_summary_chart":
+            figure_to_save = self.overall_financial_summary_chart_figure
+        else:
+            logging.warning(f"ReportingTab: Unknown chart_key '{chart_key}' for saving.")
+            return False
+
+        if figure_to_save is None:
+            logging.warning(f"ReportingTab: Figure for chart_key '{chart_key}' is not available (None). Chart might not have been generated.")
+            return False
+        
+        # Ensure the figure actually has axes/content, otherwise savefig might error or create an empty file.
+        if not figure_to_save.get_axes():
+            logging.warning(f"ReportingTab: Figure for chart_key '{chart_key}' has no axes. Cannot save.")
+            return False
+
+        try:
+            # Create directory if it doesn't exist
+            output_dir = os.path.dirname(output_image_path)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+                logging.info(f"ReportingTab: Created directory for chart image: {output_dir}")
+
+            figure_to_save.savefig(output_image_path, dpi=100, bbox_inches='tight')
+            logging.info(f"ReportingTab: Chart '{chart_key}' saved successfully to '{output_image_path}'.")
+            return True
+        except Exception as e:
+            logging.error(f"ReportingTab: Error saving chart '{chart_key}' to '{output_image_path}': {e}", exc_info=True)
+            return False
+

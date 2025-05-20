@@ -18,6 +18,7 @@ import data_utils  # Contains utility functions for data loading, saving, and pr
 # Import Tab classes that represent different sections of the UI
 from data_management_tab import DataManagementTab  # Tab for managing and editing job data
 from reporting_tab import ReportingTab  # Tab for displaying statistics and reports
+from export_tab import ExportTab # <<< IMPORTED ExportTab
 
 # --- Logging Configuration ---
 # Set up basic logging for the application.
@@ -90,6 +91,8 @@ class OpenJobsApp(tk.Tk):
         self.notebook = None  # The main ttk.Notebook widget for tabs
         self.data_tab_instance = None  # Instance of the DataManagementTab
         self.reporting_tab_instance = None  # Instance of the ReportingTab
+        self.export_tab_instance = None # <<< INITIALIZED export_tab_instance
+        
         self.create_main_ui_layout()  # Create the main UI elements (menu, notebook, tabs)
         
         # --- Initial Data Population for UI ---
@@ -170,6 +173,10 @@ class OpenJobsApp(tk.Tk):
         self.reporting_tab_instance = ReportingTab(self.notebook, self) # 'self' (app instance) is passed to the tab
         self.notebook.add(self.reporting_tab_instance, text='Reporting & Statistics')
         
+        # Create and Add Export Tab 
+        self.export_tab_instance = ExportTab(self.notebook, self) # <<< INSTANTIATED ExportTab
+        self.notebook.add(self.export_tab_instance, text='Export Report') # <<< ADDED ExportTab TO NOTEBOOK
+        
         # Bind an event handler for when the selected notebook tab changes.
         self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
 
@@ -210,6 +217,14 @@ class OpenJobsApp(tk.Tk):
             self.reporting_tab_instance.on_tab_selected() 
             # Consider if DataManagementTab also needs a specific notification
             # beyond repopulating its own tree (which it typically handles itself).
+        
+        # Notify ExportTab as well, if it exists and has an on_tab_selected or similar method
+        if self.export_tab_instance and hasattr(self.export_tab_instance, 'on_tab_selected'): # Or 'on_data_changed'
+             self.export_tab_instance.on_tab_selected() # Call its on_tab_selected if it exists
+             # For Phase 1, this is not strictly necessary to call a specific on_data_changed,
+             # but on_tab_selected is good practice for all tabs.
+             pass
+
 
     # --- Data Operation Methods ---
     def load_new_excel_data(self):
