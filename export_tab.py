@@ -2,11 +2,11 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import logging
-import os
-import pandas as pd # <<< ENSURED PANDAS IMPORT IS PRESENT
-import webbrowser # <<< ADD THIS IMPORT
+import os 
+import pandas as pd
+import webbrowser
 
-import config
+import config 
 
 class ExportTab(ttk.Frame):
     """
@@ -28,10 +28,6 @@ class ExportTab(ttk.Frame):
         self.include_coordinator_details_var = tk.BooleanVar(value=True)
         self.include_charts_var = tk.BooleanVar(value=True)
         
-        # Optional: Date range variables can be added here if needed in the future
-        # self.start_date_var = tk.StringVar() # Define if using the date entry fields below
-        # self.end_date_var = tk.StringVar()   # Define if using the date entry fields below
-
         self._setup_ui()
 
     def _setup_ui(self):
@@ -60,10 +56,6 @@ class ExportTab(ttk.Frame):
         )
         coordinator_details_cb.pack(anchor=tk.W, pady=2)
         
-        # Placeholder for future advanced coordinator selection (as per roadmap)
-        # advanced_coordinator_label = ttk.Label(controls_frame, text=" (Advanced coordinator selection will be here later)")
-        # advanced_coordinator_label.pack(anchor=tk.W, padx=(20,0), pady=1)
-
         charts_cb = ttk.Checkbutton(
             controls_frame, 
             text="Include Charts (Overall Status & Financial Summary)", 
@@ -71,24 +63,12 @@ class ExportTab(ttk.Frame):
         )
         charts_cb.pack(anchor=tk.W, pady=2)
 
-        # Optional: Date Range Entry Fields (can be uncommented and developed later)
-        # date_range_frame = ttk.LabelFrame(main_frame, text="Filter by Date Range (Optional)", padding=(10,10))
-        # date_range_frame.pack(pady=10, padx=10, fill=tk.X, anchor=tk.N)
-        # ttk.Label(date_range_frame, text="Start Date (e.g., YY-MM-DD):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
-        # start_date_entry = ttk.Entry(date_range_frame) # Add textvariable=self.start_date_var if defined
-        # start_date_entry.grid(row=0, column=1, sticky=tk.EW, padx=5, pady=2)
-        # ttk.Label(date_range_frame, text="End Date (e.g., YY-MM-DD):").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
-        # end_date_entry = ttk.Entry(date_range_frame) # Add textvariable=self.end_date_var if defined
-        # end_date_entry.grid(row=1, column=1, sticky=tk.EW, padx=5, pady=2)
-        # date_range_frame.columnconfigure(1, weight=1)
-
         export_button_frame = ttk.Frame(main_frame) 
         export_button_frame.pack(pady=(20,10), fill=tk.X)
 
         self.export_button = ttk.Button(export_button_frame, text="Export to HTML", command=self._initiate_export_process, style="Accent.TButton")
         self.export_button.pack() 
         
-        # Call on_tab_selected to set initial button state
         self.on_tab_selected() 
 
     def _tkinter_tag_to_css_class(self, tkinter_tag):
@@ -99,29 +79,39 @@ class ExportTab(ttk.Frame):
             "bold_metric": "report-bold-metric",
             "key_value_label": "report-key-value-label",
             "indented_item": "report-indented-item",
-            "warning_text": "report-warning-text"
+            "warning_text": "report-warning-text",
+            # "separator_line_tk" is handled directly in _convert_tkinter_text_to_html,
+            # so it doesn't need a CSS class mapping here unless we wanted to style it differently.
         }
-        return tag_map.get(tkinter_tag, f"tk-tag-{tkinter_tag}") # Fallback class
+        return tag_map.get(tkinter_tag, f"tk-tag-{tkinter_tag}") 
 
     def _convert_tkinter_text_to_html(self, text_segment, tkinter_tags_list):
         """
-        Converts a single text segment with its Tkinter tags into an HTML paragraph.
+        Converts a single text segment with its Tkinter tags into an HTML paragraph or span.
+        Handles newlines by converting them to <br> or wrapping segments in <p>.
+        Special handling for 'separator_line_tk' tag to convert to <hr>.
         """
+        # <<< MODIFIED: Check for separator_line_tk first >>>
+        if "separator_line_tk" in tkinter_tags_list:
+            # If the special tag is present, output an <hr> and ignore the text_segment (which should be just "\n")
+            return "<hr class=\"content-separator\">\n"
+
         if not text_segment and not tkinter_tags_list:
             return ""
 
         html_text = text_segment.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         
-        if html_text == "\n": # Handle explicit newline segments as line breaks
+        if html_text == "\n": 
             return "<br>\n" 
         
-        stripped_text = html_text.strip("\n") # Remove leading/trailing newlines handled by <p>
-        processed_text = stripped_text.replace("\n", "<br>\n") # Convert internal newlines
+        stripped_text = html_text.strip("\n") 
+        processed_text = stripped_text.replace("\n", "<br>\n")
 
-        if not processed_text.strip() and not tkinter_tags_list: # Avoid empty <p> if text is just whitespace and no tags
+        if not processed_text.strip() and not tkinter_tags_list: 
             return ""
 
-        css_classes = [self._tkinter_tag_to_css_class(tag) for tag in tkinter_tags_list if self._tkinter_tag_to_css_class(tag)]
+        # Ensure "separator_line_tk" is not passed to _tkinter_tag_to_css_class if it somehow reaches here
+        css_classes = [self._tkinter_tag_to_css_class(tag) for tag in tkinter_tags_list if tag != "separator_line_tk" and self._tkinter_tag_to_css_class(tag)]
         class_attribute = f' class="{ " ".join(css_classes) }"' if css_classes else ""
         
         return f'<p{class_attribute}>{processed_text if processed_text.strip() else "&nbsp;"}</p>\n'
@@ -129,7 +119,7 @@ class ExportTab(ttk.Frame):
 
     def _generate_html_content(self, image_dir_full_path, image_subdir_name_for_html_src):
         """
-        Generates the full HTML content string based on selected options.
+        Generates the full HTML content string based on selected options, with improved CSS.
         """
         html_parts = []
         
@@ -140,35 +130,36 @@ class ExportTab(ttk.Frame):
             return None
 
         default_font_family = getattr(config, 'DEFAULT_FONT_FAMILY', 'Arial')
-        default_font_size = getattr(config, 'DEFAULT_FONT_SIZE', 12) # pt
-        default_fg_color = getattr(config, 'REPORT_TEXT_FG_COLOR', 'black')
+        default_font_size = getattr(config, 'DEFAULT_FONT_SIZE', 11) 
+        default_fg_color = getattr(config, 'REPORT_TEXT_FG_COLOR', '#333')
 
-        # --- HTML Header and CSS ---
         html_parts.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
         html_parts.append("    <meta charset=\"UTF-8\">\n")
         html_parts.append("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n")
         html_parts.append(f"    <title>Job Report - {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}</title>\n")
         html_parts.append("    <style>\n")
-        html_parts.append(f"        body {{ font-family: '{default_font_family}', sans-serif; font-size: {default_font_size}pt; margin: 20px; line-height: 1.5; color: {default_fg_color}; background-color: #fdfdfd; }}\n")
-        html_parts.append("        .report-container { max-width: 950px; margin: auto; padding: 25px; background-color: #ffffff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }\n")
-        html_parts.append("        h1, h2, h3 {{ color: #2c3e50; margin-top: 1.2em; margin-bottom: 0.6em; }}\n")
-        html_parts.append("        h1 {{ font-size: 1.8em; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 0.3em; color: #3498db;}}\n")
-        html_parts.append("        h2 {{ font-size: 1.5em; border-bottom: 1px solid #eaeaea; padding-bottom: 0.2em; color: #2980b9; }}\n")
-        html_parts.append("        h3 {{ font-size: 1.2em; color: #34495e; }}\n")
-        html_parts.append("        p {{ margin-top: 0.3em; margin-bottom: 0.7em; }}\n")
-        html_parts.append("        .chart-image {{ max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; margin-top: 10px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }}\n")
-        html_parts.append("        .chart-container {{ margin-bottom: 20px; padding: 10px; background-color: #f9f9f9; border-radius: 4px; }}\n")
-        
-        header_font_size = default_font_size + 4
-        subheader_font_size = default_font_size + 2
-        html_parts.append(f"        .report-header {{ font-size: {header_font_size}pt; font-weight: bold; text-decoration: underline; color: #003366; margin-top: 1.5em; margin-bottom: 0.8em; }}\n")
-        html_parts.append(f"        .report-subheader {{ font-size: {subheader_font_size}pt; font-weight: bold; color: {default_fg_color}; margin-top: 1.2em; margin-bottom: 0.6em; }}\n")
-        html_parts.append(f"        .report-bold-metric {{ font-weight: bold; color: {default_fg_color}; }}\n")
-        html_parts.append(f"        .report-key-value-label {{ color: #555; }}\n") 
-        html_parts.append(f"        .report-indented-item {{ margin-left: 30px; }}\n") 
-        html_parts.append(f"        .report-warning-text {{ color: #c0392b; font-style: italic; font-weight: bold; }}\n") 
-        html_parts.append(f"        .coordinator-section {{ margin-top: 25px; padding-top: 20px; border-top: 2px solid #3498db; }}\n") 
-        html_parts.append("        .footer-timestamp { text-align: center; margin-top: 30px; font-size: 0.9em; color: #7f8c8d; border-top: 1px solid #eaeaea; padding-top: 10px; }\n")
+        html_parts.append(f"        body {{ font-family: '{default_font_family}', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: {default_font_size}pt; margin: 0; padding: 0; line-height: 1.6; color: {default_fg_color}; background-color: #f4f7f6; }}\n")
+        html_parts.append("        .report-container { max-width: 960px; margin: 20px auto; padding: 20px 30px; background-color: #ffffff; border: 1px solid #dde2e1; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }\n")
+        html_parts.append("        h1, h2, h3 { color: #2c3e50; margin-top: 1.5em; margin-bottom: 0.7em; line-height: 1.3; }\n")
+        html_parts.append("        h1 { font-size: 22pt; text-align: center; color: #1a5276; border-bottom: 2px solid #5dade2; padding-bottom: 0.4em; margin-bottom: 1em; font-weight: 600;}\n")
+        html_parts.append("        h2 { font-size: 18pt; color: #1f618d; border-bottom: 1px solid #aed6f1; padding-bottom: 0.3em; margin-top: 2em; font-weight: 500;}\n")
+        html_parts.append("        h3 { font-size: 15pt; color: #2980b9; margin-top: 1.8em; font-weight: 500;}\n")
+        html_parts.append("        p { margin-top: 0.5em; margin-bottom: 0.5em; }\n")
+        html_parts.append(f"        .report-header {{ font-family: '{default_font_family}', sans-serif; font-size: {default_font_size + 3}pt; font-weight: bold; text-decoration: underline; color: #003366; margin-top: 1.5em; margin-bottom: 0.8em; }}\n")
+        html_parts.append(f"        .report-subheader {{ font-family: '{default_font_family}', sans-serif; font-size: {default_font_size + 2}pt; font-weight: bold; color: {default_fg_color}; margin-top: 1.2em; margin-bottom: 0.6em; border-bottom: 1px dotted #bdc3c7; padding-bottom: 0.2em; }}\n")
+        html_parts.append(f"        .report-bold-metric {{ font-family: '{default_font_family}', sans-serif; font-size: {default_font_size}pt; font-weight: bold; color: #2c3e50; }}\n")
+        html_parts.append(f"        .report-key-value-label {{ font-family: '{default_font_family}', sans-serif; font-size: {default_font_size}pt; color: #566573; }}\n")
+        html_parts.append(f"        .report-indented-item {{ font-family: '{default_font_family}', sans-serif; font-size: {default_font_size}pt; color: {default_fg_color}; margin-left: 25px; }}\n")
+        html_parts.append(f"        .report-warning-text {{ font-family: '{default_font_family}', sans-serif; font-size: {default_font_size}pt; color: #c0392b; font-style: italic; font-weight: 500; }}\n")
+        html_parts.append("        .charts-section { margin-top: 30px; padding-top: 20px; border-top: 2px solid #5dade2; }\n")
+        html_parts.append("        .chart-container { margin-bottom: 30px; padding: 15px; background-color: #f9fafb; border: 1px solid #e5e8e8; border-radius: 4px; text-align: center; }\n")
+        html_parts.append("        .chart-container h3 { margin-top: 0.5em; margin-bottom: 1em; font-size: 13pt; color: #34495e; }\n")
+        html_parts.append("        .chart-image {{ max-width: 100%; height: auto; border: 1px solid #d5dbdb; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }}\n")
+        html_parts.append("        .coordinator-section { margin-top: 30px; padding-top: 20px; border-top: 2px solid #5dade2; }\n")
+        html_parts.append("        .coordinator-section h3 { border-bottom: none; margin-top: 1em; }\n") 
+        # <<< ADDED CSS for hr.content-separator >>>
+        html_parts.append("        hr.content-separator { border: 0; height: 1px; background-color: #ccc; margin: 1.5em 0; }\n")
+        html_parts.append("        .footer-timestamp { text-align: center; margin-top: 40px; font-size: 0.85em; color: #7f8c8d; border-top: 1px solid #eaecee; padding-top: 15px; }\n")
         html_parts.append("    </style>\n</head>\n<body>\n<div class=\"report-container\">\n")
         html_parts.append(f"<h1>Open Jobs Report</h1>\n")
 
@@ -179,30 +170,30 @@ class ExportTab(ttk.Frame):
                 for segment, tags in text_data_overall:
                     html_parts.append(self._convert_tkinter_text_to_html(segment, tags))
             else:
-                html_parts.append("<p><em>No overall health data available or selected for export.</em></p>\n")
+                html_parts.append("<p class=\"report-indented-item\"><em>No overall health data available or selected for export.</em></p>\n")
         
         if self.include_coordinator_details_var.get():
             html_parts.append("<div class=\"coordinator-section\">\n")
             html_parts.append("<h2>Project Coordinator Details</h2>\n")
             if reporting_tab.coordinator_tabs_widgets:
                 coordinator_found = False
-                sorted_coordinator_keys = sorted(reporting_tab.coordinator_tabs_widgets.keys())
+                sorted_coordinator_keys = sorted(reporting_tab.coordinator_tabs_widgets.keys()) 
                 for pc_safe_name in sorted_coordinator_keys:
                     pc_display_name = pc_safe_name.replace("_dot_", ".") 
                     text_data_pc = reporting_tab.get_formatted_text_content(pc_safe_name)
                     if text_data_pc:
                         coordinator_found = True
-                        html_parts.append(f"<h3>Coordinator: {pc_display_name}</h3>\n")
+                        html_parts.append(f"<h3>Coordinator: {pc_display_name}</h3>\n") 
                         for segment, tags in text_data_pc:
                             html_parts.append(self._convert_tkinter_text_to_html(segment, tags))
                 if not coordinator_found:
-                     html_parts.append("<p><em>No specific coordinator data available for export.</em></p>\n")
+                     html_parts.append("<p class=\"report-indented-item\"><em>No specific coordinator data available for export.</em></p>\n")
             else:
-                html_parts.append("<p><em>No project coordinator data available in the report.</em></p>\n")
+                html_parts.append("<p class=\"report-indented-item\"><em>No project coordinator data available in the report.</em></p>\n")
             html_parts.append("</div>\n")
 
         if self.include_charts_var.get():
-            html_parts.append("<div class=\"charts-section\" style=\"margin-top: 25px; padding-top: 20px; border-top: 2px solid #3498db;\">\n")
+            html_parts.append("<div class=\"charts-section\">\n")
             html_parts.append("<h2>Charts</h2>\n")
             charts_exported_count = 0
 
@@ -210,24 +201,28 @@ class ExportTab(ttk.Frame):
             status_chart_full_path = os.path.join(image_dir_full_path, status_chart_filename)
             status_chart_html_src = os.path.join(image_subdir_name_for_html_src, status_chart_filename).replace("\\", "/")
             
+            html_parts.append(f'<div class="chart-container">\n<h3>Open Jobs by Status</h3>\n')
             if reporting_tab.save_chart_as_image("overall_status_chart", status_chart_full_path):
-                html_parts.append(f'<div class="chart-container">\n<h3>Open Jobs by Status</h3>\n<img src="{status_chart_html_src}" alt="Overall Status Chart" class="chart-image">\n</div>\n')
+                html_parts.append(f'<img src="{status_chart_html_src}" alt="Overall Status Chart" class="chart-image">\n')
                 charts_exported_count += 1
             else:
-                html_parts.append("<p><em>Overall status chart could not be exported.</em></p>\n")
+                html_parts.append("<p class=\"report-warning-text\"><em>Overall status chart could not be exported.</em></p>\n")
+            html_parts.append("</div>\n")
 
             financial_chart_filename = "overall_financial_summary_chart.png"
             financial_chart_full_path = os.path.join(image_dir_full_path, financial_chart_filename)
             financial_chart_html_src = os.path.join(image_subdir_name_for_html_src, financial_chart_filename).replace("\\", "/")
 
+            html_parts.append(f'<div class="chart-container">\n<h3>Financial Summary</h3>\n')
             if reporting_tab.save_chart_as_image("overall_financial_summary_chart", financial_chart_full_path):
-                html_parts.append(f'<div class="chart-container">\n<h3>Financial Summary</h3>\n<img src="{financial_chart_html_src}" alt="Financial Summary Chart" class="chart-image">\n</div>\n')
+                html_parts.append(f'<img src="{financial_chart_html_src}" alt="Financial Summary Chart" class="chart-image">\n')
                 charts_exported_count += 1
             else:
-                html_parts.append("<p><em>Financial summary chart could not be exported.</em></p>\n")
+                html_parts.append("<p class=\"report-warning-text\"><em>Financial summary chart could not be exported.</em></p>\n")
+            html_parts.append("</div>\n") 
             
-            if charts_exported_count == 0: 
-                 html_parts.append("<p><em>No charts were available for export.</em></p>\n")
+            if charts_exported_count == 0 and self.include_charts_var.get(): 
+                 html_parts.append("<p class=\"report-indented-item report-warning-text\"><em>No charts were generated or available for export.</em></p>\n")
             html_parts.append("</div>\n")
 
         html_parts.append(f"<div class=\"footer-timestamp\"><p>Report Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</p></div>\n")
@@ -260,7 +255,8 @@ class ExportTab(ttk.Frame):
         if self.include_charts_var.get():
             html_file_basename = os.path.basename(html_file_path)
             html_file_name_without_ext, _ = os.path.splitext(html_file_basename)
-            image_subdir_name_for_html_src = f"{html_file_name_without_ext}_images"
+            safe_subdir_name = "".join(c if c.isalnum() or c in ('_', '-') else '_' for c in html_file_name_without_ext)
+            image_subdir_name_for_html_src = f"{safe_subdir_name}_images"
             
             html_file_dir = os.path.dirname(html_file_path)
             image_dir_full_path = os.path.join(html_file_dir, image_subdir_name_for_html_src)
@@ -286,23 +282,19 @@ class ExportTab(ttk.Frame):
             logging.info(f"HTML report successfully saved to: {html_file_path}")
             
             success_message = f"Report exported successfully to:\n{html_file_path}"
-            if self.include_charts_var.get() and image_dir_full_path:
+            if self.include_charts_var.get() and image_dir_full_path and os.path.exists(image_dir_full_path):
                 success_message += f"\n\nChart images (if any) saved in subdirectory:\n{image_dir_full_path}"
             messagebox.showinfo("Export Successful", success_message, parent=self)
             
-            # <<< START OF CHANGE >>>
             try:
-                # Convert the file path to a 'file://' URL for webbrowser
                 url = 'file://' + os.path.abspath(html_file_path)
-                webbrowser.open(url, new=2) # new=2 opens in a new tab, if possible
+                webbrowser.open(url, new=2) 
                 logging.info(f"Attempted to open '{url}' in web browser.")
             except Exception as e_open:
                 logging.error(f"Error attempting to open HTML file in browser: {e_open}", exc_info=True)
                 messagebox.showwarning("Open Warning", 
-                                       f"Report exported, but could not automatically open it in the browser.\n"
-                                       f"Error: {e_open}\n\nPlease open it manually:\n{html_file_path}", 
+                                       f"Report exported, but could not automatically open it.\nError: {e_open}\n\nPlease open manually:\n{html_file_path}", 
                                        parent=self)
-            # <<< END OF CHANGE >>>
 
         except IOError as e:
             logging.error(f"Error writing HTML file to '{html_file_path}': {e}")

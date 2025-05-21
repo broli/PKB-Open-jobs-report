@@ -45,6 +45,7 @@ class ReportingTab(ttk.Frame):
         text_widget.tag_configure("key_value_label", foreground="#404040") 
         text_widget.tag_configure("indented_item", lmargin1="20p", lmargin2="20p", foreground=default_fg) 
         text_widget.tag_configure("warning_text", foreground="#990000", font=(config.DEFAULT_FONT_FAMILY, config.DEFAULT_FONT_SIZE, "italic")) 
+        text_widget.tag_configure("separator_line_tk") # <<< ADDED TAG for separators (no visual style needed in Tk)
         text_widget.config(fg=default_fg)
 
     def _insert_text_with_tags(self, text_widget, text, tags=None):
@@ -54,6 +55,12 @@ class ReportingTab(ttk.Frame):
             tags = (tags,)
         text_widget.insert(tk.END, processed_text, tags)
         text_widget.insert(tk.END, "\n") 
+
+    # <<< NEW METHOD for inserting separators >>>
+    def _insert_separator_line(self, text_widget):
+        """Inserts a themed break/separator line marker into the text widget."""
+        # This will be interpreted by the HTML exporter as an <hr>
+        text_widget.insert(tk.END, "\n", ("separator_line_tk",))
 
     def _setup_ui(self):
         """Sets up the main UI elements for the Reporting tab."""
@@ -467,7 +474,7 @@ class ReportingTab(ttk.Frame):
         num_open_jobs = len(open_jobs_df) if open_jobs_df is not None else 0
 
         self._insert_text_with_tags(txt, f"Overall Snapshot ({today.strftime('%Y-%m-%d %H:%M:%S')})", ("header",))
-        self._insert_text_with_tags(txt, "--------------------------------------------------")
+        self._insert_separator_line(txt) # <<< MODIFIED
         txt.insert(tk.END, "Total Jobs in Current Dataset: ", ("key_value_label",))
         self._insert_text_with_tags(txt, f"{num_total_jobs_loaded}", ("bold_metric",))
         txt.insert(tk.END, "Currently Open Jobs (Active): ", ("key_value_label",))
@@ -503,7 +510,7 @@ class ReportingTab(ttk.Frame):
         self._insert_text_with_tags(txt, "")
         
         self._insert_text_with_tags(txt, "Work-in-Progress Timing (All Open Jobs, from Turn-in Date):", ("subheader",))
-        self._insert_text_with_tags(txt, "-----------------------------------------------------------")
+        self._insert_separator_line(txt) # <<< MODIFIED
         if open_jobs_df is not None and not open_jobs_df.empty and 'JobAge_days' in open_jobs_df.columns:
             if open_jobs_df['JobAge_days'].notna().any():
                 avg_age = open_jobs_df['JobAge_days'].mean()
@@ -532,7 +539,7 @@ class ReportingTab(ttk.Frame):
 
         # "Stuck" Jobs Section
         self._insert_text_with_tags(txt, "\"Stuck\" Jobs in Early Stages (Open Jobs > 3 Weeks in early status):", ("subheader",))
-        self._insert_text_with_tags(txt, "---------------------------------------------------------------------")
+        self._insert_separator_line(txt) # <<< MODIFIED
         if open_jobs_df is not None and not open_jobs_df.empty and 'JobAge_days' in open_jobs_df.columns and 'Status' in open_jobs_df.columns:
             early_statuses = ["New", "Waiting Measure", "Ready to order"] # Define "early" statuses
             stuck_threshold_days = 21 # More than 3 weeks
@@ -553,12 +560,11 @@ class ReportingTab(ttk.Frame):
         self._insert_text_with_tags(txt, "")
 
         # High-Value Aging Jobs Section
-        # --- MODIFIED: Section title and value_threshold ---
         self._insert_text_with_tags(txt, "High-Value Aging Jobs (Open Jobs > 8 Weeks & Balance > $10,000):", ("subheader",))
-        self._insert_text_with_tags(txt, "-------------------------------------------------------------------") # Adjusted underline
+        self._insert_separator_line(txt) # <<< MODIFIED
         if open_jobs_df is not None and not open_jobs_df.empty and 'JobAge_days' in open_jobs_df.columns and 'Balance_numeric' in open_jobs_df.columns and 'InvoiceTotal_numeric' in open_jobs_df.columns: 
             aging_threshold_days = 56 
-            value_threshold = 10000 # --- MODIFIED: Increased threshold ---
+            value_threshold = 10000 
             hv_aging_df = open_jobs_df[(open_jobs_df['JobAge_days'] > aging_threshold_days) & (open_jobs_df['Balance_numeric'] > value_threshold)]
             if not hv_aging_df.empty:
                 self._insert_text_with_tags(txt, f"Found {len(hv_aging_df)} high-value aging job(s):", ("indented_item", "warning_text"))
@@ -583,7 +589,7 @@ class ReportingTab(ttk.Frame):
 
         # Financial Value by Age Bucket Section
         self._insert_text_with_tags(txt, "Total Financial Value by Age Bucket (Open Jobs):", ("subheader",))
-        self._insert_text_with_tags(txt, "------------------------------------------------")
+        self._insert_separator_line(txt) # <<< MODIFIED
         if open_jobs_df is not None and not open_jobs_df.empty and 'Age_Bucket' in open_jobs_df.columns and \
            'InvoiceTotal_numeric' in open_jobs_df.columns and 'Balance_numeric' in open_jobs_df.columns and \
            open_jobs_df['Age_Bucket'].notna().any() : 
@@ -611,7 +617,7 @@ class ReportingTab(ttk.Frame):
         txt = self._create_or_get_coordinator_tab(pc_name_safe) # Gets or creates the text widget
         
         self._insert_text_with_tags(txt, f"Statistics for {pc_name_display} ({today.strftime('%Y-%m-%d %H:%M:%S')})", ("header",))
-        self._insert_text_with_tags(txt, "----------------------------------------------------------")
+        self._insert_separator_line(txt) # <<< MODIFIED
         txt.insert(tk.END, "Total Open Jobs Assigned: ", ("key_value_label",))
         self._insert_text_with_tags(txt, f"{len(pc_open_jobs_df)}", ("bold_metric",))
         self._insert_text_with_tags(txt, "")
@@ -705,29 +711,18 @@ class ReportingTab(ttk.Frame):
              logging.info(f"ReportingTab: Text widget for section '{section_key}' is empty.")
              return []
         
-        # The dump method with text=True and tag=True gives a sequence of text and tag changes.
-        # We need to process this to associate active tags with each text segment.
         content_with_tags = []
         current_tags = set()
         
-        # Iterate through the dump of the text widget
-        # The dump provides (event_type, event_value, index)
-        # event_type can be 'text', 'tagon', 'tagoff', or a specific tag name if only that tag is dumped.
-        # With text=True and tag=True, we expect 'text', 'tagon', 'tagoff'.
         try:
             dump_output = text_widget.dump("1.0", tk.END, text=True, tag=True)
             for key, value, index in dump_output:
                 if key == "text":
-                    # When a text segment is encountered, associate it with the currently active tags.
-                    # We must handle newlines within the text segment if we want to preserve paragraph structure.
-                    # For now, let's keep it simple as per the initial plan.
-                    if value: # Ensure non-empty text segment
+                    if value: 
                         content_with_tags.append((value, sorted(list(current_tags))))
                 elif key == "tagon":
-                    # A tag is turned on, add it to the set of current tags.
                     current_tags.add(value)
                 elif key == "tagoff":
-                    # A tag is turned off, remove it from the set.
                     current_tags.discard(value)
             logging.info(f"ReportingTab: Successfully extracted {len(content_with_tags)} text segments for section '{section_key}'.")
         except Exception as e:
@@ -761,13 +756,11 @@ class ReportingTab(ttk.Frame):
             logging.warning(f"ReportingTab: Figure for chart_key '{chart_key}' is not available (None). Chart might not have been generated.")
             return False
         
-        # Ensure the figure actually has axes/content, otherwise savefig might error or create an empty file.
         if not figure_to_save.get_axes():
             logging.warning(f"ReportingTab: Figure for chart_key '{chart_key}' has no axes. Cannot save.")
             return False
 
         try:
-            # Create directory if it doesn't exist
             output_dir = os.path.dirname(output_image_path)
             if output_dir and not os.path.exists(output_dir):
                 os.makedirs(output_dir, exist_ok=True)
@@ -779,4 +772,3 @@ class ReportingTab(ttk.Frame):
         except Exception as e:
             logging.error(f"ReportingTab: Error saving chart '{chart_key}' to '{output_image_path}': {e}", exc_info=True)
             return False
-
