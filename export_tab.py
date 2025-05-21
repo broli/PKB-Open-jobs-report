@@ -2,10 +2,11 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import logging
-import os 
+import os
 import pandas as pd # <<< ENSURED PANDAS IMPORT IS PRESENT
+import webbrowser # <<< ADD THIS IMPORT
 
-import config 
+import config
 
 class ExportTab(ttk.Frame):
     """
@@ -73,10 +74,10 @@ class ExportTab(ttk.Frame):
         # Optional: Date Range Entry Fields (can be uncommented and developed later)
         # date_range_frame = ttk.LabelFrame(main_frame, text="Filter by Date Range (Optional)", padding=(10,10))
         # date_range_frame.pack(pady=10, padx=10, fill=tk.X, anchor=tk.N)
-        # ttk.Label(date_range_frame, text="Start Date (e.g., YYYY-MM-DD):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
+        # ttk.Label(date_range_frame, text="Start Date (e.g., YY-MM-DD):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
         # start_date_entry = ttk.Entry(date_range_frame) # Add textvariable=self.start_date_var if defined
         # start_date_entry.grid(row=0, column=1, sticky=tk.EW, padx=5, pady=2)
-        # ttk.Label(date_range_frame, text="End Date (e.g., YYYY-MM-DD):").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+        # ttk.Label(date_range_frame, text="End Date (e.g., YY-MM-DD):").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
         # end_date_entry = ttk.Entry(date_range_frame) # Add textvariable=self.end_date_var if defined
         # end_date_entry.grid(row=1, column=1, sticky=tk.EW, padx=5, pady=2)
         # date_range_frame.columnconfigure(1, weight=1)
@@ -288,6 +289,20 @@ class ExportTab(ttk.Frame):
             if self.include_charts_var.get() and image_dir_full_path:
                 success_message += f"\n\nChart images (if any) saved in subdirectory:\n{image_dir_full_path}"
             messagebox.showinfo("Export Successful", success_message, parent=self)
+            
+            # <<< START OF CHANGE >>>
+            try:
+                # Convert the file path to a 'file://' URL for webbrowser
+                url = 'file://' + os.path.abspath(html_file_path)
+                webbrowser.open(url, new=2) # new=2 opens in a new tab, if possible
+                logging.info(f"Attempted to open '{url}' in web browser.")
+            except Exception as e_open:
+                logging.error(f"Error attempting to open HTML file in browser: {e_open}", exc_info=True)
+                messagebox.showwarning("Open Warning", 
+                                       f"Report exported, but could not automatically open it in the browser.\n"
+                                       f"Error: {e_open}\n\nPlease open it manually:\n{html_file_path}", 
+                                       parent=self)
+            # <<< END OF CHANGE >>>
 
         except IOError as e:
             logging.error(f"Error writing HTML file to '{html_file_path}': {e}")
