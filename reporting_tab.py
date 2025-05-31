@@ -12,6 +12,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt 
 import matplotlib.colors as mcolors # For more color options
+from matplotlib.ticker import MaxNLocator # For integer ticks on y-axis
 
 class ReportingTab(ttk.Frame):
     def __init__(self, parent_notebook, app_instance):
@@ -32,6 +33,12 @@ class ReportingTab(ttk.Frame):
         
         self.overall_charts_canvas = None 
         self.overall_charts_scrollable_frame = None 
+
+        # --- For New Weekly Intake Chart ---
+        self.weekly_intake_tab_content_frame = None
+        self.weekly_intake_chart_frame = None
+        self.weekly_intake_chart_figure = None
+        self.weekly_intake_chart_canvas_widget = None
 
         self._setup_ui()
 
@@ -76,15 +83,16 @@ class ReportingTab(ttk.Frame):
         self.stats_notebook = ttk.Notebook(main_report_frame)
         self.stats_notebook.pack(expand=True, fill=tk.BOTH, pady=5)
 
+        report_bg = getattr(config, 'REPORT_SUB_TAB_BG_COLOR', 'white') 
+
         # --- Overall Pipeline Health Tab ---
         overall_tab_content_frame = ttk.Frame(self.stats_notebook, padding=(5,5))
         self.stats_notebook.add(overall_tab_content_frame, text="Overall Pipeline Health")
         
         # Container for the text area (left side)
-        overall_text_container_frame = tk.Frame(overall_tab_content_frame) 
+        overall_text_container_frame = tk.Frame(overall_tab_content_frame, bg=report_bg) 
         overall_text_container_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5)) 
 
-        report_bg = getattr(config, 'REPORT_SUB_TAB_BG_COLOR', 'white') 
         report_fg = getattr(config, 'REPORT_TEXT_FG_COLOR', 'black') 
 
         self.overall_stats_text_area = tk.Text(
@@ -134,6 +142,15 @@ class ReportingTab(ttk.Frame):
         self.overall_financial_summary_chart_frame = ttk.Frame(self.overall_charts_scrollable_frame, padding=(5,5))
         self.overall_financial_summary_chart_frame.pack(side=tk.TOP, fill=tk.X, expand=True, pady=(0,10)) 
         ttk.Label(self.overall_financial_summary_chart_frame, text="Financial Summary (Chart will appear here)").pack() 
+
+        # --- Weekly Job Intake Tab (New) ---
+        self.weekly_intake_tab_content_frame = ttk.Frame(self.stats_notebook, padding=(5,5))
+        self.stats_notebook.add(self.weekly_intake_tab_content_frame, text="Weekly Job Intake")
+
+        # Frame for the chart itself (will be filled by _create_weekly_intake_chart)
+        self.weekly_intake_chart_frame = ttk.Frame(self.weekly_intake_tab_content_frame, padding=(5,5))
+        self.weekly_intake_chart_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=(0,10))
+        ttk.Label(self.weekly_intake_chart_frame, text="Weekly Job Intake Chart (Data will load upon refresh)").pack()
 
 
     def _create_or_get_coordinator_tab(self, pc_name):
@@ -241,6 +258,106 @@ class ReportingTab(ttk.Frame):
             open_jobs_df['Age_Bucket'] = pd.NA
             
         return open_jobs_df, today
+
+    def _prepare_weekly_intake_data(self, source_df):
+        """
+        Prepares data for the weekly job intake chart, focusing on the last 3 months.
+        Args:
+            source_df (pd.DataFrame): The DataFrame to use (e.g., self.app.status_df).
+        Returns:
+            pd.Series | None: A Series with weekly job counts, or None if data is unavailable.
+        """
+        if source_df is None or source_df.empty:
+            logging.warning("ReportingTab: Source DataFrame for weekly intake is empty or None.")
+            return None
+        
+        if 'Turn in Date' not in source_df.columns:
+            logging.warning("ReportingTab: 'Turn in Date' column missing, cannot generate weekly intake data.")
+            return None
+
+        df_copy = source_df.copy()
+        df_copy['TurnInDate_dt'] = pd.to_datetime(df_copy['Turn in Date'], errors='coerce')
+        
+        # Filter out rows where 'TurnInDate_dt' is NaT (Not a Time)
+        df_copy = df_copy.dropna(subset=['TurnInDate_dt'])
+
+        if df_copy.empty:
+            logging.info("ReportingTab: No valid 'Turn in Date' entries after conversion for weekly intake.")
+            return None
+
+        # --- MODIFICATION: Filter for the last 3 months ---
+        three_months_ago = pd.Timestamp.now().normalize() - pd.DateOffset(months=3)
+        df_copy = df_copy[df_copy['TurnInDate_dt'] >= three_months_ago]
+        
+        if df_copy.empty:
+            logging.info("ReportingTab: No 'Turn in Date' entries in the last 3 months for weekly intake.")
+            return None
+            
+        # Resample by week (Monday as start of week) and count jobs.
+        weekly_counts = df_copy.set_index('TurnInDate_dt').resample('W-MON').size()
+        weekly_counts = weekly_counts.rename("Job Count")
+        
+        logging.info(f"ReportingTab: Prepared weekly intake data for the last 3 months with {len(weekly_counts)} weeks.")
+        return weekly_counts
+
+    def _create_weekly_intake_chart(self, parent_frame, intake_data):
+        """
+        Creates and embeds a bar chart for weekly job intake.
+        Args:
+            parent_frame (tk.Frame): The Tkinter frame to embed the chart in.
+            intake_data (pd.Series): Data prepared by _prepare_weekly_intake_data.
+        """
+        # Clear previous chart if exists
+        if hasattr(self, 'weekly_intake_chart_canvas_widget') and self.weekly_intake_chart_canvas_widget:
+            self.weekly_intake_chart_canvas_widget.get_tk_widget().destroy()
+            self.weekly_intake_chart_canvas_widget = None
+            self.weekly_intake_chart_figure = None # Clear figure reference
+        for widget in parent_frame.winfo_children(): # Clear any placeholder labels
+            widget.destroy()
+
+        if intake_data is None or intake_data.empty:
+            ttk.Label(parent_frame, text="No data available to display for weekly job intake (last 3 months).").pack(expand=True, fill=tk.BOTH)
+            logging.info("ReportingTab: No intake data to plot for weekly chart (last 3 months).")
+            return
+
+        try:
+            num_weeks = len(intake_data)
+            # Dynamically adjust figure width based on the number of weeks
+            fig_width = max(8, num_weeks * 0.5) # Ensure minimum width, scales with items
+            fig_height = 5 
+
+            self.weekly_intake_chart_figure = Figure(figsize=(fig_width, fig_height), dpi=90)
+            ax = self.weekly_intake_chart_figure.add_subplot(111)
+            
+            intake_data.plot(kind='bar', ax=ax, color=plt.cm.get_cmap('viridis', num_weeks)(range(num_weeks)))
+            
+            ax.set_title('Weekly Job Intake (Last 3 Months by Turn in Date)', fontsize=config.DEFAULT_FONT_SIZE + 1)
+            # --- MODIFICATION: Update X-axis label ---
+            ax.set_xlabel('Week of Year (Monday Start)', fontsize=config.DEFAULT_FONT_SIZE)
+            ax.set_ylabel('Number of Jobs Received', fontsize=config.DEFAULT_FONT_SIZE)
+            
+            # --- MODIFICATION: Format x-axis labels to "Week [Number]" ---
+            ax.set_xticklabels([f"Week {date.strftime('%W')}" for date in intake_data.index], rotation=45, ha="right")
+            
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.grid(axis='y', linestyle=':', alpha=0.7, color='gray')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            
+            self.weekly_intake_chart_figure.tight_layout()
+
+            self.weekly_intake_chart_canvas_widget = FigureCanvasTkAgg(self.weekly_intake_chart_figure, master=parent_frame)
+            self.weekly_intake_chart_canvas_widget.draw()
+            canvas_tk_widget = self.weekly_intake_chart_canvas_widget.get_tk_widget()
+            canvas_tk_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+            
+            logging.info(f"ReportingTab: Successfully created weekly intake chart with {num_weeks} weeks (last 3 months).")
+
+        except Exception as e:
+            logging.error(f"ReportingTab: Error creating weekly intake chart: {e}", exc_info=True)
+            ttk.Label(parent_frame, text=f"Error creating weekly intake chart: {e}").pack(expand=True, fill=tk.BOTH)
+            self.weekly_intake_chart_figure = None
+
 
     def _create_status_distribution_chart(self, parent_frame, open_jobs_df):
         """Creates and embeds a horizontal bar chart for status distribution."""
@@ -393,29 +510,38 @@ class ReportingTab(ttk.Frame):
         """Main function to refresh and display all statistics and charts."""
         logging.info("ReportingTab: Refreshing all statistics.")
         open_jobs_df, today = self._prepare_open_jobs_data()
+        source_df_for_intake = self.app.status_df # Use all loaded jobs for intake
 
         # Handle case where no data is loaded at all
-        if open_jobs_df is None: 
+        if open_jobs_df is None: # This implies self.app.status_df was also None or empty
             self.overall_stats_text_area.config(state=tk.NORMAL)
             self.overall_stats_text_area.delete('1.0', tk.END)
             self._insert_text_with_tags(self.overall_stats_text_area, "No data available in the application.", ("warning_text",))
             self.overall_stats_text_area.config(state=tk.DISABLED)
             
-            # Clear charts
+            # Clear Overall Health charts
             if hasattr(self, 'overall_status_chart_canvas_widget') and self.overall_status_chart_canvas_widget:
                 self.overall_status_chart_canvas_widget.get_tk_widget().destroy()
                 self.overall_status_chart_canvas_widget = None
                 self.overall_status_chart_figure = None
-                for widget in self.overall_status_chart_frame.winfo_children(): widget.destroy()
-                ttk.Label(self.overall_status_chart_frame, text="No data for status chart.").pack(expand=True, fill=tk.BOTH)
+            for widget in self.overall_status_chart_frame.winfo_children(): widget.destroy() # Clear placeholder
+            ttk.Label(self.overall_status_chart_frame, text="No data for status chart.").pack(expand=True, fill=tk.BOTH)
             
             if hasattr(self, 'overall_financial_summary_chart_canvas_widget') and self.overall_financial_summary_chart_canvas_widget:
                 self.overall_financial_summary_chart_canvas_widget.get_tk_widget().destroy()
                 self.overall_financial_summary_chart_canvas_widget = None
                 self.overall_financial_summary_chart_figure = None
-                for widget in self.overall_financial_summary_chart_frame.winfo_children(): widget.destroy()
-                ttk.Label(self.overall_financial_summary_chart_frame, text="No data for financial summary chart.").pack(expand=True, fill=tk.BOTH)
+            for widget in self.overall_financial_summary_chart_frame.winfo_children(): widget.destroy() # Clear placeholder
+            ttk.Label(self.overall_financial_summary_chart_frame, text="No data for financial summary chart.").pack(expand=True, fill=tk.BOTH)
             
+            # Clear Weekly Intake chart
+            if hasattr(self, 'weekly_intake_chart_canvas_widget') and self.weekly_intake_chart_canvas_widget:
+                self.weekly_intake_chart_canvas_widget.get_tk_widget().destroy()
+                self.weekly_intake_chart_canvas_widget = None
+                self.weekly_intake_chart_figure = None
+            for widget in self.weekly_intake_chart_frame.winfo_children(): widget.destroy() # Clear placeholder
+            ttk.Label(self.weekly_intake_chart_frame, text="No data for weekly intake chart.").pack(expand=True, fill=tk.BOTH)
+
             # Remove all coordinator tabs
             for pc_name_safe in list(self.coordinator_tabs_widgets.keys()):
                 try:
@@ -434,6 +560,10 @@ class ReportingTab(ttk.Frame):
         self._populate_overall_pipeline_tab(open_jobs_df, today, num_total_jobs_loaded)
         self._create_status_distribution_chart(self.overall_status_chart_frame, open_jobs_df)
         self._create_financial_summary_chart(self.overall_financial_summary_chart_frame, open_jobs_df) 
+
+        # Populate Weekly Job Intake Chart
+        weekly_intake_data = self._prepare_weekly_intake_data(source_df_for_intake)
+        self._create_weekly_intake_chart(self.weekly_intake_chart_frame, weekly_intake_data)
 
         # Populate/Update Project Coordinator Tabs
         project_coordinator_col = 'Project Coordinator'
@@ -684,6 +814,16 @@ class ReportingTab(ttk.Frame):
                 self._insert_text_with_tags(self.overall_stats_text_area, "No data loaded in the 'Data Management' tab. Please load data first, then click 'Refresh All Statistics' on this tab.", ("warning_text",))
                 self.overall_stats_text_area.config(state=tk.DISABLED)
 
+             # Also clear the weekly intake chart placeholder if no data
+             if self.weekly_intake_chart_frame:
+                if hasattr(self, 'weekly_intake_chart_canvas_widget') and self.weekly_intake_chart_canvas_widget:
+                    self.weekly_intake_chart_canvas_widget.get_tk_widget().destroy()
+                    self.weekly_intake_chart_canvas_widget = None
+                    self.weekly_intake_chart_figure = None
+                for widget in self.weekly_intake_chart_frame.winfo_children(): widget.destroy()
+                ttk.Label(self.weekly_intake_chart_frame, text="No data loaded. Refresh after loading data.").pack(expand=True, fill=tk.BOTH)
+
+
     # --- Methods for HTML Export (Phase 3) ---
     def get_formatted_text_content(self, section_key="overall"):
         """
@@ -736,7 +876,7 @@ class ReportingTab(ttk.Frame):
         Saves the specified chart as an image file.
         Args:
             chart_key (str): Identifier for the chart (e.g., "overall_status_chart", 
-                             "overall_financial_summary_chart").
+                             "overall_financial_summary_chart", "weekly_intake_chart").
             output_image_path (str): The full path where the image should be saved.
         Returns:
             bool: True if the chart was saved successfully, False otherwise.
@@ -748,6 +888,8 @@ class ReportingTab(ttk.Frame):
             figure_to_save = self.overall_status_chart_figure
         elif chart_key == "overall_financial_summary_chart":
             figure_to_save = self.overall_financial_summary_chart_figure
+        elif chart_key == "weekly_intake_chart": # New chart key
+            figure_to_save = self.weekly_intake_chart_figure
         else:
             logging.warning(f"ReportingTab: Unknown chart_key '{chart_key}' for saving.")
             return False
@@ -756,8 +898,8 @@ class ReportingTab(ttk.Frame):
             logging.warning(f"ReportingTab: Figure for chart_key '{chart_key}' is not available (None). Chart might not have been generated.")
             return False
         
-        if not figure_to_save.get_axes():
-            logging.warning(f"ReportingTab: Figure for chart_key '{chart_key}' has no axes. Cannot save.")
+        if not figure_to_save.get_axes(): # Check if the figure has any axes drawn on it
+            logging.warning(f"ReportingTab: Figure for chart_key '{chart_key}' has no axes. Cannot save an empty chart.")
             return False
 
         try:
