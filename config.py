@@ -4,8 +4,9 @@
 import logging
 
 # --- Application File Names ---
-OUTPUT_FILE = "open_invoices.xlsx"  # Default for generated Excel report
-STATUS_FILE = "invoice_status.pkl"    # For saving/loading current status
+# OUTPUT_FILE = "open_invoices.xlsx"  # Default for generated Excel report (REMOVED as per plan)
+STATUS_FILE = "job_data.db"    # For saving/loading current status (database file)
+DB_TABLE_NAME = "jobs"         # Name of the table in the SQLite database
 
 # --- Font Configuration ---
 DEFAULT_FONT_FAMILY = 'Calibri'
@@ -15,14 +16,14 @@ DEFAULT_FONT_BOLD = (DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, 'bold')
 
 # --- UI Layout & Formatting ---
 DEFAULT_PADDING = 10
-DATE_FORMAT = '%b-%d'  # Example: May-17 (Consider if year is needed for other contexts)
+DATE_FORMAT = '%Y-%m-%d'  # Example: 2025-05-31 (UPDATED for YYYY-MM-DD format)
 CURRENCY_COLUMNS = ['Invoice Total', 'Balance']  # Columns containing currency
 CURRENCY_FORMAT = '${:,.2f}'  # Example: $1,234.56
 
 # --- Data Specific Configuration ---
 # Single source of truth for DataFrame column names and order
 EXPECTED_COLUMNS = [
-    'Invoice #', 'Order Date', 'Turn in Date', 'Account',
+    'Invoice #', 'Order Date', 'Turn in Date', 'Account', # RETAINED 'Invoice #' based on your feedback
     'Invoice Total', 'Balance', 'Salesperson', 'Project Coordinator',
     'Status', 'Notes'
 ]
@@ -41,13 +42,13 @@ REVIEW_MISSING_STATUS = "Review - Missing from Report"
 # --- Treeview Column Widths ---
 # Preferred initial widths for Treeview columns (in pixels)
 PREFERRED_COLUMN_WIDTHS = {
-    'Invoice #': 80,
+    'Invoice #': 80,  # RETAINED 'Invoice #' based on your feedback
     'Order Date': 100,
     'Turn in Date': 100,
     'Account': 250,
     'Invoice Total': 100,
     'Balance': 100,
-    'Salesperson': 120, # This is still here, but not used in reporting_tab stats
+    'Salesperson': 120,
     'Project Coordinator': 150,
     'Status': 200,
     'Notes': 350
@@ -73,8 +74,8 @@ LOG_FORMAT = '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)
 
 # --- Reporting Tab UI ---
 REPORT_SUB_TAB_BG_COLOR = "#F0F8FF"
-REPORT_TEXT_FG_COLOR = "black" 
+REPORT_TEXT_FG_COLOR = "black"
 
 # --- Application Information (Optional) ---
 APP_NAME = "Open Jobs Status Tracker"
-APP_VERSION = "1.2.0" # Example version update
+APP_VERSION = "2.0.0" # UPDATED version for migration
