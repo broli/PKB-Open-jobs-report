@@ -2,6 +2,7 @@
 # This file contains application-wide configurations and constants.
 
 import logging
+LOG_LEVEL = logging.DEBUG
 
 # --- Application File Names ---
 # OUTPUT_FILE = "open_invoices.xlsx"  # Default for generated Excel report (REMOVED as per plan)
