@@ -109,7 +109,9 @@ class DataManagementTab(ttk.Frame):
                 value = row[col_name]
                 # Apply specific formatting for date and currency columns
                 if col_name in date_columns and pd.notna(value):
-                    try: value = pd.to_datetime(value).strftime(config.DATE_FORMAT)
+                    try: 
+                        # Date formatting now uses the updated config.DATE_FORMAT (e.g., '%Y-%m-%d')
+                        value = pd.to_datetime(value).strftime(config.DATE_FORMAT)
                     except (ValueError, TypeError): logging.warning(f"DMT: Could not format date for '{value}' in col '{col_name}'. Original used.")
                 elif col_name in config.CURRENCY_COLUMNS and pd.notna(value):
                     try:
@@ -200,7 +202,9 @@ class DataManagementTab(ttk.Frame):
                     display_value = config.CURRENCY_FORMAT.format(float(str(new_value).replace('$', '').replace(',', '')))
                 except: pass # If formatting fails, use raw new_value
             elif column_name in ['Order Date', 'Turn in Date'] and pd.notna(new_value):
-                try: display_value = pd.to_datetime(new_value).strftime(config.DATE_FORMAT)
+                try: 
+                    # Display formatting for dates uses the updated config.DATE_FORMAT
+                    display_value = pd.to_datetime(new_value).strftime(config.DATE_FORMAT)
                 except: pass
             
             current_tree_values[column_tree_idx] = display_value if pd.notna(display_value) else ""
@@ -271,7 +275,7 @@ class DataManagementTab(ttk.Frame):
         elif config.ALLOWED_STATUS: status_var.set(config.ALLOWED_STATUS[0]) # Default to first allowed status
         else: status_var.set("") # Should not happen if data is clean
 
-        # Display Invoice # for context
+        # Display Invoice # for context (using 'Invoice #' as key column name)
         inv_num = self.app.status_df.loc[df_row_index, 'Invoice #'] 
         ttk.Label(self.editing_window, text=f"Status for Invoice {inv_num}:").pack(padx=config.DEFAULT_PADDING,pady=(config.DEFAULT_PADDING,5))
         
@@ -335,7 +339,7 @@ class DataManagementTab(ttk.Frame):
             pc_var.set("") 
 
         # Display the Invoice # for context, so the user knows which job they're editing
-        inv_num = self.app.status_df.loc[df_row_index, 'Invoice #'] 
+        inv_num = self.app.status_df.loc[df_row_index, 'Invoice #'] # Using 'Invoice #'
         ttk.Label(self.editing_window, text=f"{column_name} for Invoice {inv_num}:").pack(padx=config.DEFAULT_PADDING, pady=(config.DEFAULT_PADDING, 5))
         
         # Create the Combobox for PC selection (read-only to enforce selection from the list)
@@ -515,7 +519,8 @@ class DataManagementTab(ttk.Frame):
                             
                             # Convert to appropriate type for sorting
                             if col in date_columns:
-                                sort_value = pd.to_datetime(original_value, errors='coerce') # NaT for unparseable dates
+                                # Sorting will use full datetime objects
+                                sort_value = pd.to_datetime(original_value, errors='coerce') 
                             elif col in config.CURRENCY_COLUMNS:
                                 try: 
                                     sort_value = float(str(original_value).replace('$', '').replace(',', ''))

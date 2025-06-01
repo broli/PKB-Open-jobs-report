@@ -206,6 +206,13 @@ class ReportingTab(ttk.Frame):
             return None, pd.Timestamp.now().normalize()
 
         df_all_loaded = self.app.status_df.copy()
+        # Ensure date columns are datetime before calculations
+        date_cols_to_convert = ['Turn in Date', 'Order Date'] # Add other relevant date cols if needed
+        for col in date_cols_to_convert:
+            if col in df_all_loaded.columns:
+                df_all_loaded[col] = pd.to_datetime(df_all_loaded[col], errors='coerce')
+
+
         today = pd.Timestamp.now().normalize() # For consistent age calculation
 
         # Define statuses to exclude for "open jobs"
@@ -229,7 +236,10 @@ class ReportingTab(ttk.Frame):
         # Calculate Job Age and Age Buckets
         turn_in_date_col = 'Turn in Date'
         if turn_in_date_col in open_jobs_df.columns:
+            # 'TurnInDate_dt' should already be datetime from earlier conversion of df_all_loaded
+            # If not, or to be safe:
             open_jobs_df['TurnInDate_dt'] = pd.to_datetime(open_jobs_df[turn_in_date_col], errors='coerce')
+            
             valid_turn_in_dates_mask = open_jobs_df['TurnInDate_dt'].notna()
             open_jobs_df['JobAge_days'] = pd.NA # Initialize column
 
@@ -240,8 +250,7 @@ class ReportingTab(ttk.Frame):
 
             if open_jobs_df['JobAge_days'].notna().any():
                 # Define age bins and labels for bucketing
-                age_bins = [-1, 7, 21, 49, 56, float('inf')] # Bins define the right edge (e.g., -1 to 7 days)
-                
+                age_bins = [-1, 7, 21, 49, 56, float('inf')] 
                 age_labels = [
                     'Job Age: 0-7 Days (First Week of Job Age)', 
                     'Job Age: 8-21 Days (Job is 2-3 Weeks Old)', 
@@ -251,7 +260,7 @@ class ReportingTab(ttk.Frame):
                 ]
                 open_jobs_df['Age_Bucket'] = pd.cut(open_jobs_df['JobAge_days'], bins=age_bins, labels=age_labels, right=True)
             else:
-                open_jobs_df['Age_Bucket'] = pd.NA # If no valid ages, bucket is also NA
+                open_jobs_df['Age_Bucket'] = pd.NA 
         else:
             logging.warning("ReportingTab: 'Turn in Date' column not found. Cannot calculate job age.")
             open_jobs_df['JobAge_days'] = pd.NA
@@ -276,16 +285,15 @@ class ReportingTab(ttk.Frame):
             return None
 
         df_copy = source_df.copy()
+        # Ensure 'Turn in Date' is datetime
         df_copy['TurnInDate_dt'] = pd.to_datetime(df_copy['Turn in Date'], errors='coerce')
         
-        # Filter out rows where 'TurnInDate_dt' is NaT (Not a Time)
         df_copy = df_copy.dropna(subset=['TurnInDate_dt'])
 
         if df_copy.empty:
             logging.info("ReportingTab: No valid 'Turn in Date' entries after conversion for weekly intake.")
             return None
 
-        # --- MODIFICATION: Filter for the last 3 months ---
         three_months_ago = pd.Timestamp.now().normalize() - pd.DateOffset(months=3)
         df_copy = df_copy[df_copy['TurnInDate_dt'] >= three_months_ago]
         
@@ -293,7 +301,6 @@ class ReportingTab(ttk.Frame):
             logging.info("ReportingTab: No 'Turn in Date' entries in the last 3 months for weekly intake.")
             return None
             
-        # Resample by week (Monday as start of week) and count jobs.
         weekly_counts = df_copy.set_index('TurnInDate_dt').resample('W-MON').size()
         weekly_counts = weekly_counts.rename("Job Count")
         
@@ -307,12 +314,11 @@ class ReportingTab(ttk.Frame):
             parent_frame (tk.Frame): The Tkinter frame to embed the chart in.
             intake_data (pd.Series): Data prepared by _prepare_weekly_intake_data.
         """
-        # Clear previous chart if exists
         if hasattr(self, 'weekly_intake_chart_canvas_widget') and self.weekly_intake_chart_canvas_widget:
             self.weekly_intake_chart_canvas_widget.get_tk_widget().destroy()
             self.weekly_intake_chart_canvas_widget = None
-            self.weekly_intake_chart_figure = None # Clear figure reference
-        for widget in parent_frame.winfo_children(): # Clear any placeholder labels
+            self.weekly_intake_chart_figure = None 
+        for widget in parent_frame.winfo_children(): 
             widget.destroy()
 
         if intake_data is None or intake_data.empty:
@@ -322,8 +328,7 @@ class ReportingTab(ttk.Frame):
 
         try:
             num_weeks = len(intake_data)
-            # Dynamically adjust figure width based on the number of weeks
-            fig_width = max(8, num_weeks * 0.5) # Ensure minimum width, scales with items
+            fig_width = max(8, num_weeks * 0.5) 
             fig_height = 5 
 
             self.weekly_intake_chart_figure = Figure(figsize=(fig_width, fig_height), dpi=90)
@@ -332,11 +337,9 @@ class ReportingTab(ttk.Frame):
             intake_data.plot(kind='bar', ax=ax, color=plt.cm.get_cmap('viridis', num_weeks)(range(num_weeks)))
             
             ax.set_title('Weekly Job Intake (Last 3 Months by Turn in Date)', fontsize=config.DEFAULT_FONT_SIZE + 1)
-            # --- MODIFICATION: Update X-axis label ---
             ax.set_xlabel('Week of Year (Monday Start)', fontsize=config.DEFAULT_FONT_SIZE)
             ax.set_ylabel('Number of Jobs Received', fontsize=config.DEFAULT_FONT_SIZE)
             
-            # --- MODIFICATION: Format x-axis labels to "Week [Number]" ---
             ax.set_xticklabels([f"Week {date.strftime('%W')}" for date in intake_data.index], rotation=45, ha="right")
             
             ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -361,12 +364,11 @@ class ReportingTab(ttk.Frame):
 
     def _create_status_distribution_chart(self, parent_frame, open_jobs_df):
         """Creates and embeds a horizontal bar chart for status distribution."""
-        # Clear previous chart if exists
         if hasattr(self, 'overall_status_chart_canvas_widget') and self.overall_status_chart_canvas_widget:
             self.overall_status_chart_canvas_widget.get_tk_widget().destroy()
             self.overall_status_chart_canvas_widget = None
-            self.overall_status_chart_figure = None # Clear figure reference
-        for widget in parent_frame.winfo_children(): widget.destroy() # Clear placeholder
+            self.overall_status_chart_figure = None 
+        for widget in parent_frame.winfo_children(): widget.destroy() 
 
         if open_jobs_df is None or open_jobs_df.empty or 'Status' not in open_jobs_df.columns:
             ttk.Label(parent_frame, text="No data for status chart.").pack(expand=True, fill=tk.BOTH)
@@ -378,12 +380,10 @@ class ReportingTab(ttk.Frame):
             return
 
         try:
-            # Dynamically adjust figure height based on the number of statuses
-            fig_height = max(3.5, len(status_counts) * 0.5) # Min height, scales with items
-            self.overall_status_chart_figure = Figure(figsize=(6, fig_height), dpi=90) # Store figure
+            fig_height = max(3.5, len(status_counts) * 0.5) 
+            self.overall_status_chart_figure = Figure(figsize=(6, fig_height), dpi=90) 
             ax = self.overall_status_chart_figure.add_subplot(111)
             
-            # Use a pleasant color map
             colors = plt.cm.get_cmap('Pastel2', len(status_counts)) 
             bars = status_counts.plot(kind='barh', ax=ax, color=[colors(i) for i in range(len(status_counts))])
             
@@ -392,41 +392,36 @@ class ReportingTab(ttk.Frame):
             ax.set_ylabel('Status', fontsize=config.DEFAULT_FONT_SIZE)
             ax.tick_params(axis='both', which='major', labelsize=config.DEFAULT_FONT_SIZE - 1)
             
-            ax.grid(axis='x', linestyle=':', alpha=0.7, color='gray') # Subtle grid
+            ax.grid(axis='x', linestyle=':', alpha=0.7, color='gray') 
             ax.spines['top'].set_visible(False) 
             ax.spines['right'].set_visible(False)
             ax.spines['left'].set_color('darkgrey')
             ax.spines['bottom'].set_color('darkgrey')
 
-            # Adjust layout to prevent labels from being cut off
             self.overall_status_chart_figure.subplots_adjust(left=0.30, right=0.95, top=0.90, bottom=0.15) 
             
-            # Add value labels to bars
             for i, v in enumerate(status_counts):
                 ax.text(v + 0.2, i, str(v), color='black', va='center', fontweight='normal', fontsize=config.DEFAULT_FONT_SIZE -1)
             
-            # Embed chart in Tkinter
             self.overall_status_chart_canvas_widget = FigureCanvasTkAgg(self.overall_status_chart_figure, master=parent_frame)
             self.overall_status_chart_canvas_widget.draw()
             canvas_tk_widget = self.overall_status_chart_canvas_widget.get_tk_widget()
             canvas_tk_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True) 
             parent_frame.update_idletasks() 
             
-            # Update scrollregion of the parent canvas after drawing
             self.overall_charts_canvas.after_idle(lambda: self.overall_charts_canvas.configure(scrollregion=self.overall_charts_canvas.bbox("all")))
 
         except Exception as e:
             logging.error(f"ReportingTab: Error creating status distribution chart: {e}", exc_info=True)
             ttk.Label(parent_frame, text=f"Error creating chart: {e}").pack(expand=True, fill=tk.BOTH)
-            self.overall_status_chart_figure = None # Ensure figure is None on error
+            self.overall_status_chart_figure = None 
 
     def _create_financial_summary_chart(self, parent_frame, open_jobs_df):
         """Creates and embeds a pie chart for the financial summary."""
-        # Clear previous chart
         if hasattr(self, 'overall_financial_summary_chart_canvas_widget') and self.overall_financial_summary_chart_canvas_widget:
             self.overall_financial_summary_chart_canvas_widget.get_tk_widget().destroy()
             self.overall_financial_summary_chart_canvas_widget = None
-            self.overall_financial_summary_chart_figure = None # Clear figure reference
+            self.overall_financial_summary_chart_figure = None 
         for widget in parent_frame.winfo_children(): widget.destroy()
 
         if open_jobs_df is None or open_jobs_df.empty or \
@@ -439,7 +434,6 @@ class ReportingTab(ttk.Frame):
         total_balance = open_jobs_df['Balance_numeric'].sum()
         total_collected = total_invoice - total_balance
         
-        # Prepare data for pie chart
         pie_labels_for_legend = []
         pie_values = []
         pie_colors = []
@@ -448,12 +442,12 @@ class ReportingTab(ttk.Frame):
         if total_collected > 0:
             pie_labels_for_legend.append(f'Collected (${total_collected:,.0f})')
             pie_values.append(total_collected)
-            pie_colors.append('#77DD77') # Pastel green
+            pie_colors.append('#77DD77') 
             explode_values.append(0.03) 
         if total_balance > 0:
             pie_labels_for_legend.append(f'Remaining (${total_balance:,.0f})')
             pie_values.append(total_balance)
-            pie_colors.append('#FFB347') # Pastel orange
+            pie_colors.append('#FFB347') 
             explode_values.append(0.03)
 
         if not pie_values or sum(pie_values) == 0:
@@ -461,25 +455,23 @@ class ReportingTab(ttk.Frame):
              return
 
         try:
-            self.overall_financial_summary_chart_figure = Figure(figsize=(6, 4.5), dpi=90) # Store figure
+            self.overall_financial_summary_chart_figure = Figure(figsize=(6, 4.5), dpi=90) 
             ax = self.overall_financial_summary_chart_figure.add_subplot(111) 
             
-            # Corrected line: unpack to wedges, texts, autotexts
             wedges, texts, autotexts = ax.pie(
                 pie_values, 
                 autopct='%1.1f%%', 
                 startangle=90, 
                 colors=pie_colors,
                 explode=explode_values,
-                wedgeprops=dict(width=0.45, edgecolor='w'), # Donut-like effect
+                wedgeprops=dict(width=0.45, edgecolor='w'), 
                 pctdistance=0.75, 
                 textprops={'fontsize': config.DEFAULT_FONT_SIZE - 1, 'color':'black', 'weight':'bold'}
             )
             
             ax.set_title(f'Open Jobs Financials\n(Total Invoice: ${total_invoice:,.0f})', fontsize=config.DEFAULT_FONT_SIZE, pad=15) 
-            ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+            ax.axis('equal')  
             
-            # Legend placement
             lgd = ax.legend(wedges, pie_labels_for_legend,
                       title="Breakdown",
                       loc="center left", 
@@ -487,7 +479,6 @@ class ReportingTab(ttk.Frame):
                       fontsize=config.DEFAULT_FONT_SIZE - 1,
                       title_fontsize=config.DEFAULT_FONT_SIZE)
 
-            # Adjust subplot to make room for the legend
             self.overall_financial_summary_chart_figure.subplots_adjust(left=0.05, bottom=0.05, right=0.70, top=0.88) 
 
             self.overall_financial_summary_chart_canvas_widget = FigureCanvasTkAgg(self.overall_financial_summary_chart_figure, master=parent_frame)
@@ -501,52 +492,44 @@ class ReportingTab(ttk.Frame):
         except Exception as e:
             logging.error(f"ReportingTab: Error creating financial summary pie chart: {e}", exc_info=True)
             ttk.Label(parent_frame, text=f"Error creating financial chart: {e}").pack(expand=True, fill=tk.BOTH)
-            self.overall_financial_summary_chart_figure = None # Ensure figure is None on error
-
-    # ... (Keep existing methods like display_all_stats, _populate_overall_pipeline_tab, _populate_coordinator_tab) ...
-    # ... (Make sure they are not removed or unintentionally altered) ...
+            self.overall_financial_summary_chart_figure = None 
 
     def display_all_stats(self):
         """Main function to refresh and display all statistics and charts."""
         logging.info("ReportingTab: Refreshing all statistics.")
         open_jobs_df, today = self._prepare_open_jobs_data()
-        source_df_for_intake = self.app.status_df # Use all loaded jobs for intake
+        source_df_for_intake = self.app.status_df 
 
-        # Handle case where no data is loaded at all
-        if open_jobs_df is None: # This implies self.app.status_df was also None or empty
+        if open_jobs_df is None: 
             self.overall_stats_text_area.config(state=tk.NORMAL)
             self.overall_stats_text_area.delete('1.0', tk.END)
             self._insert_text_with_tags(self.overall_stats_text_area, "No data available in the application.", ("warning_text",))
             self.overall_stats_text_area.config(state=tk.DISABLED)
             
-            # Clear Overall Health charts
             if hasattr(self, 'overall_status_chart_canvas_widget') and self.overall_status_chart_canvas_widget:
                 self.overall_status_chart_canvas_widget.get_tk_widget().destroy()
                 self.overall_status_chart_canvas_widget = None
                 self.overall_status_chart_figure = None
-            for widget in self.overall_status_chart_frame.winfo_children(): widget.destroy() # Clear placeholder
+            for widget in self.overall_status_chart_frame.winfo_children(): widget.destroy() 
             ttk.Label(self.overall_status_chart_frame, text="No data for status chart.").pack(expand=True, fill=tk.BOTH)
             
             if hasattr(self, 'overall_financial_summary_chart_canvas_widget') and self.overall_financial_summary_chart_canvas_widget:
                 self.overall_financial_summary_chart_canvas_widget.get_tk_widget().destroy()
                 self.overall_financial_summary_chart_canvas_widget = None
                 self.overall_financial_summary_chart_figure = None
-            for widget in self.overall_financial_summary_chart_frame.winfo_children(): widget.destroy() # Clear placeholder
+            for widget in self.overall_financial_summary_chart_frame.winfo_children(): widget.destroy() 
             ttk.Label(self.overall_financial_summary_chart_frame, text="No data for financial summary chart.").pack(expand=True, fill=tk.BOTH)
             
-            # Clear Weekly Intake chart
             if hasattr(self, 'weekly_intake_chart_canvas_widget') and self.weekly_intake_chart_canvas_widget:
                 self.weekly_intake_chart_canvas_widget.get_tk_widget().destroy()
                 self.weekly_intake_chart_canvas_widget = None
                 self.weekly_intake_chart_figure = None
-            for widget in self.weekly_intake_chart_frame.winfo_children(): widget.destroy() # Clear placeholder
+            for widget in self.weekly_intake_chart_frame.winfo_children(): widget.destroy() 
             ttk.Label(self.weekly_intake_chart_frame, text="No data for weekly intake chart.").pack(expand=True, fill=tk.BOTH)
 
-            # Remove all coordinator tabs
             for pc_name_safe in list(self.coordinator_tabs_widgets.keys()):
                 try:
-                    # Find the tab in the notebook and forget it
-                    tab_frame_to_forget = self.coordinator_tabs_widgets[pc_name_safe].master.master # pc_tab_frame
+                    tab_frame_to_forget = self.coordinator_tabs_widgets[pc_name_safe].master.master 
                     for i, tab_id in enumerate(self.stats_notebook.tabs()):
                         if self.stats_notebook.nametowidget(tab_id) == tab_frame_to_forget:
                             self.stats_notebook.forget(i)
@@ -555,22 +538,18 @@ class ReportingTab(ttk.Frame):
                 del self.coordinator_tabs_widgets[pc_name_safe]
             return
 
-        # Populate Overall Pipeline Tab (text and charts)
         num_total_jobs_loaded = len(self.app.status_df) if self.app.status_df is not None else 0
         self._populate_overall_pipeline_tab(open_jobs_df, today, num_total_jobs_loaded)
         self._create_status_distribution_chart(self.overall_status_chart_frame, open_jobs_df)
         self._create_financial_summary_chart(self.overall_financial_summary_chart_frame, open_jobs_df) 
 
-        # Populate Weekly Job Intake Chart
         weekly_intake_data = self._prepare_weekly_intake_data(source_df_for_intake)
         self._create_weekly_intake_chart(self.weekly_intake_chart_frame, weekly_intake_data)
 
-        # Populate/Update Project Coordinator Tabs
         project_coordinator_col = 'Project Coordinator'
-        active_coordinators_safe = set() # Keep track of coordinators with current open jobs
+        active_coordinators_safe = set() 
 
         if project_coordinator_col in open_jobs_df.columns and not open_jobs_df.empty:
-            # Get unique, non-null coordinators and sort them
             unique_coordinators = sorted([pc for pc in open_jobs_df[project_coordinator_col].unique() if pd.notna(pc)])
             
             for pc_name in unique_coordinators:
@@ -579,7 +558,6 @@ class ReportingTab(ttk.Frame):
                 pc_specific_df = open_jobs_df[open_jobs_df[project_coordinator_col] == pc_name].copy()
                 self._populate_coordinator_tab(pc_name, pc_specific_df, today) 
         
-        # Remove tabs for coordinators who no longer have open jobs
         coordinators_to_remove = set(self.coordinator_tabs_widgets.keys()) - active_coordinators_safe
         for pc_name_safe in coordinators_to_remove:
             if pc_name_safe in self.coordinator_tabs_widgets:
@@ -604,7 +582,7 @@ class ReportingTab(ttk.Frame):
         num_open_jobs = len(open_jobs_df) if open_jobs_df is not None else 0
 
         self._insert_text_with_tags(txt, f"Overall Snapshot ({today.strftime('%Y-%m-%d %H:%M:%S')})", ("header",))
-        self._insert_separator_line(txt) # <<< MODIFIED
+        self._insert_separator_line(txt) 
         txt.insert(tk.END, "Total Jobs in Current Dataset: ", ("key_value_label",))
         self._insert_text_with_tags(txt, f"{num_total_jobs_loaded}", ("bold_metric",))
         txt.insert(tk.END, "Currently Open Jobs (Active): ", ("key_value_label",))
@@ -615,7 +593,6 @@ class ReportingTab(ttk.Frame):
         if open_jobs_df is not None and not open_jobs_df.empty:
             open_status_counts = open_jobs_df['Status'].value_counts()
             if not open_status_counts.empty:
-                 # Display top 3 statuses, then '...' if more
                  summary_line = ", ".join([f"{status}: {count}" for status, count in open_status_counts.nlargest(3).items()])
                  if len(open_status_counts) > 3:
                      summary_line += ", ..."
@@ -640,18 +617,19 @@ class ReportingTab(ttk.Frame):
         self._insert_text_with_tags(txt, "")
         
         self._insert_text_with_tags(txt, "Work-in-Progress Timing (All Open Jobs, from Turn-in Date):", ("subheader",))
-        self._insert_separator_line(txt) # <<< MODIFIED
+        self._insert_separator_line(txt) 
         if open_jobs_df is not None and not open_jobs_df.empty and 'JobAge_days' in open_jobs_df.columns:
             if open_jobs_df['JobAge_days'].notna().any():
                 avg_age = open_jobs_df['JobAge_days'].mean()
                 txt.insert(tk.END, "Average Age (since turn-in): ", ("indented_item", "key_value_label"))
                 self._insert_text_with_tags(txt, f"{avg_age:.2f} days", ("indented_item", "bold_metric"))
                 
-                # Oldest project details
                 oldest_idx = open_jobs_df['JobAge_days'].idxmax()
                 oldest = open_jobs_df.loc[oldest_idx]
                 self._insert_text_with_tags(txt, "Oldest Project (since turn-in):", ("indented_item", "key_value_label"))
-                self._insert_text_with_tags(txt, f"  - Invoice #: {oldest.get('Invoice #', 'N/A')}", ("indented_item", "bold_metric")) # Retained "Invoice #" here as it's a general section
+                # Using 'Invoice #' as key
+                self._insert_text_with_tags(txt, f"  - Invoice #: {oldest.get('Invoice #', 'N/A')}", ("indented_item", "bold_metric")) 
+                # Date display uses config.DATE_FORMAT (now YYYY-MM-DD)
                 self._insert_text_with_tags(txt, f"  - Turn-in Date: {oldest['TurnInDate_dt'].strftime(config.DATE_FORMAT) if pd.notna(oldest['TurnInDate_dt']) else 'N/A'}", ("indented_item",))
                 self._insert_text_with_tags(txt, f"  - Age: {oldest['JobAge_days']:.0f} days", ("indented_item", "bold_metric"))
                 
@@ -659,7 +637,7 @@ class ReportingTab(ttk.Frame):
                 if 'Age_Bucket' in open_jobs_df.columns and open_jobs_df['Age_Bucket'].notna().any():
                     bucket_counts = open_jobs_df['Age_Bucket'].value_counts().sort_index()
                     for bucket, count in bucket_counts.items():
-                        txt.insert(tk.END, f"  - {bucket}: ", ("indented_item",)) # Bucket names are now the new labels
+                        txt.insert(tk.END, f"  - {bucket}: ", ("indented_item",)) 
                         self._insert_text_with_tags(txt, f"{count} jobs", ("indented_item", "bold_metric"))
                 else: self._insert_text_with_tags(txt, "  Could not determine age distribution (Age_Bucket column missing or empty).", ("indented_item", "warning_text"))
             else: self._insert_text_with_tags(txt, "No valid job ages for timing summary.", ("indented_item", "warning_text"))
@@ -667,21 +645,22 @@ class ReportingTab(ttk.Frame):
         else: self._insert_text_with_tags(txt, "Timing columns (JobAge_days) not pre-calculated or available.", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
 
-        # "Stuck" Jobs Section
         self._insert_text_with_tags(txt, "\"Stuck\" Jobs in Early Stages (Open Jobs > 3 Weeks in early status):", ("subheader",))
-        self._insert_separator_line(txt) # <<< MODIFIED
+        self._insert_separator_line(txt) 
         if open_jobs_df is not None and not open_jobs_df.empty and 'JobAge_days' in open_jobs_df.columns and 'Status' in open_jobs_df.columns:
-            early_statuses = ["New", "Waiting Measure", "Ready to order"] # Define "early" statuses
-            stuck_threshold_days = 21 # More than 3 weeks
+            early_statuses = ["New", "Waiting Measure", "Ready to order"] 
+            stuck_threshold_days = 21 
             stuck_jobs_df = open_jobs_df[(open_jobs_df['Status'].isin(early_statuses)) & (open_jobs_df['JobAge_days'] > stuck_threshold_days)]
             if not stuck_jobs_df.empty:
                 self._insert_text_with_tags(txt, f"Found {len(stuck_jobs_df)} potentially stuck job(s):", ("indented_item", "warning_text"))
                 for _, job in stuck_jobs_df.iterrows():
                     account_name_stuck = job.get('Account', 'N/A')
+                    # Using 'Invoice #' as key
                     po_number_stuck = job.get('Invoice #', 'N/A') 
                     status_stuck = job.get('Status', 'N/A')
                     age_stuck = job.get('JobAge_days', 0)
                     pc_stuck = job.get('Project Coordinator', 'N/A')
+                    # Displaying "PO #:" for user readability, but fetching data with 'Invoice #'
                     line_stuck = (f"  - Account: {account_name_stuck} - PO #: {po_number_stuck}, "
                                   f"Status: {status_stuck}, Age: {age_stuck:.0f}d, PC: {pc_stuck}")
                     self._insert_text_with_tags(txt, line_stuck, ("indented_item",))
@@ -689,9 +668,8 @@ class ReportingTab(ttk.Frame):
         else: self._insert_text_with_tags(txt, "Cannot determine stuck jobs (missing required data like JobAge_days or Status).", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
 
-        # High-Value Aging Jobs Section
         self._insert_text_with_tags(txt, "High-Value Aging Jobs (Open Jobs > 8 Weeks & Balance > $10,000):", ("subheader",))
-        self._insert_separator_line(txt) # <<< MODIFIED
+        self._insert_separator_line(txt) 
         if open_jobs_df is not None and not open_jobs_df.empty and 'JobAge_days' in open_jobs_df.columns and 'Balance_numeric' in open_jobs_df.columns and 'InvoiceTotal_numeric' in open_jobs_df.columns: 
             aging_threshold_days = 56 
             value_threshold = 10000 
@@ -700,6 +678,7 @@ class ReportingTab(ttk.Frame):
                 self._insert_text_with_tags(txt, f"Found {len(hv_aging_df)} high-value aging job(s):", ("indented_item", "warning_text"))
                 for _, job in hv_aging_df.iterrows():
                     account_name = job.get('Account', 'N/A')
+                    # Using 'Invoice #' as key
                     po_number = job.get('Invoice #', 'N/A') 
                     remaining_balance_val = job.get('Balance_numeric', 0)
                     job_total_val = job.get('InvoiceTotal_numeric', 0) 
@@ -708,7 +687,7 @@ class ReportingTab(ttk.Frame):
 
                     remaining_balance_str = self.app.CURRENCY_FORMAT.format(remaining_balance_val)
                     job_total_str = self.app.CURRENCY_FORMAT.format(job_total_val) 
-
+                    # Displaying "PO #:" for user readability
                     line = (f"  - {account_name} - PO #: {po_number}, " 
                             f"Remaining Balance: {remaining_balance_str} (Job Total: {job_total_str}), "
                             f"Age: {job_age_days:.0f}d, PC: {project_coordinator}")
@@ -717,16 +696,15 @@ class ReportingTab(ttk.Frame):
         else: self._insert_text_with_tags(txt, "Cannot determine high-value aging jobs (missing required data like JobAge_days, Balance_numeric, or InvoiceTotal_numeric).", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
 
-        # Financial Value by Age Bucket Section
         self._insert_text_with_tags(txt, "Total Financial Value by Age Bucket (Open Jobs):", ("subheader",))
-        self._insert_separator_line(txt) # <<< MODIFIED
+        self._insert_separator_line(txt) 
         if open_jobs_df is not None and not open_jobs_df.empty and 'Age_Bucket' in open_jobs_df.columns and \
            'InvoiceTotal_numeric' in open_jobs_df.columns and 'Balance_numeric' in open_jobs_df.columns and \
            open_jobs_df['Age_Bucket'].notna().any() : 
             financial_by_bucket = open_jobs_df.groupby('Age_Bucket', observed=False).agg( 
                 Total_Invoice_Value=('InvoiceTotal_numeric', 'sum'),
                 Total_Remaining_Balance=('Balance_numeric', 'sum'),
-                Job_Count=('Invoice #', 'count') 
+                Job_Count=('Invoice #', 'count') # Using 'Invoice #' for count
             )
             if not financial_by_bucket.empty:
                 for bucket, data in financial_by_bucket.iterrows():
@@ -738,16 +716,16 @@ class ReportingTab(ttk.Frame):
             else: self._insert_text_with_tags(txt, "No data to aggregate financial value by age bucket.", ("indented_item",))
         else: self._insert_text_with_tags(txt, "Cannot determine financial value by age bucket (missing required data like Age_Bucket or financial columns).", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
-        txt.config(state=tk.DISABLED) # Set back to read-only
+        txt.config(state=tk.DISABLED) 
 
 
     def _populate_coordinator_tab(self, pc_name_display, pc_open_jobs_df, today):
         """Populates the text area of a specific Project Coordinator's tab."""
-        pc_name_safe = str(pc_name_display).replace(".", "_dot_") # Sanitize for widget key
-        txt = self._create_or_get_coordinator_tab(pc_name_safe) # Gets or creates the text widget
+        pc_name_safe = str(pc_name_display).replace(".", "_dot_") 
+        txt = self._create_or_get_coordinator_tab(pc_name_safe) 
         
         self._insert_text_with_tags(txt, f"Statistics for {pc_name_display} ({today.strftime('%Y-%m-%d %H:%M:%S')})", ("header",))
-        self._insert_separator_line(txt) # <<< MODIFIED
+        self._insert_separator_line(txt) 
         txt.insert(tk.END, "Total Open Jobs Assigned: ", ("key_value_label",))
         self._insert_text_with_tags(txt, f"{len(pc_open_jobs_df)}", ("bold_metric",))
         self._insert_text_with_tags(txt, "")
@@ -785,7 +763,7 @@ class ReportingTab(ttk.Frame):
                 pc_bucket_counts = pc_open_jobs_df['Age_Bucket'].value_counts().sort_index()
                 if not pc_bucket_counts.empty:
                     for bucket, count in pc_bucket_counts.items():
-                        txt.insert(tk.END, f"    - {bucket}: ", ("indented_item",)) # Bucket names are the new labels
+                        txt.insert(tk.END, f"    - {bucket}: ", ("indented_item",)) 
                         self._insert_text_with_tags(txt, f"{count} jobs", ("indented_item", "bold_metric"))
                 else: self._insert_text_with_tags(txt, "    Could not determine age distribution for this coordinator.", ("indented_item", "warning_text"))
             else: self._insert_text_with_tags(txt, "  No valid job ages to distribute into buckets for this coordinator.", ("indented_item", "warning_text"))
@@ -801,20 +779,18 @@ class ReportingTab(ttk.Frame):
         else: self._insert_text_with_tags(txt, "  Timing data ('JobAge_days') not available for this coordinator.", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
             
-        txt.config(state=tk.DISABLED) # Set back to read-only
+        txt.config(state=tk.DISABLED) 
 
     def on_tab_selected(self):
         """Called when the Reporting tab is selected in the main notebook."""
         logging.info("Reporting tab selected.")
-        # Check if data is loaded; if not, show a message.
         if self.app.status_df is None or self.app.status_df.empty:
-             if self.overall_stats_text_area: # Ensure widget exists
+             if self.overall_stats_text_area: 
                 self.overall_stats_text_area.config(state=tk.NORMAL)
                 self.overall_stats_text_area.delete('1.0', tk.END)
                 self._insert_text_with_tags(self.overall_stats_text_area, "No data loaded in the 'Data Management' tab. Please load data first, then click 'Refresh All Statistics' on this tab.", ("warning_text",))
                 self.overall_stats_text_area.config(state=tk.DISABLED)
 
-             # Also clear the weekly intake chart placeholder if no data
              if self.weekly_intake_chart_frame:
                 if hasattr(self, 'weekly_intake_chart_canvas_widget') and self.weekly_intake_chart_canvas_widget:
                     self.weekly_intake_chart_canvas_widget.get_tk_widget().destroy()
@@ -846,8 +822,7 @@ class ReportingTab(ttk.Frame):
             logging.warning(f"ReportingTab: Text widget for section '{section_key}' not found or does not exist.")
             return []
 
-        # Ensure the widget is not empty
-        if text_widget.index(tk.END) == "1.0": # Widget is empty if index END is same as START
+        if text_widget.index(tk.END) == "1.0": 
              logging.info(f"ReportingTab: Text widget for section '{section_key}' is empty.")
              return []
         
@@ -888,7 +863,7 @@ class ReportingTab(ttk.Frame):
             figure_to_save = self.overall_status_chart_figure
         elif chart_key == "overall_financial_summary_chart":
             figure_to_save = self.overall_financial_summary_chart_figure
-        elif chart_key == "weekly_intake_chart": # New chart key
+        elif chart_key == "weekly_intake_chart": 
             figure_to_save = self.weekly_intake_chart_figure
         else:
             logging.warning(f"ReportingTab: Unknown chart_key '{chart_key}' for saving.")
@@ -898,7 +873,7 @@ class ReportingTab(ttk.Frame):
             logging.warning(f"ReportingTab: Figure for chart_key '{chart_key}' is not available (None). Chart might not have been generated.")
             return False
         
-        if not figure_to_save.get_axes(): # Check if the figure has any axes drawn on it
+        if not figure_to_save.get_axes(): 
             logging.warning(f"ReportingTab: Figure for chart_key '{chart_key}' has no axes. Cannot save an empty chart.")
             return False
 
