@@ -80,8 +80,7 @@ class ExportTab(ttk.Frame):
             "key_value_label": "report-key-value-label",
             "indented_item": "report-indented-item",
             "warning_text": "report-warning-text",
-            # "separator_line_tk" is handled directly in _convert_tkinter_text_to_html,
-            # so it doesn't need a CSS class mapping here unless we wanted to style it differently.
+            # "separator_line_tk" is handled directly in _convert_tkinter_text_to_html
         }
         return tag_map.get(tkinter_tag, f"tk-tag-{tkinter_tag}") 
 
@@ -91,9 +90,7 @@ class ExportTab(ttk.Frame):
         Handles newlines by converting them to <br> or wrapping segments in <p>.
         Special handling for 'separator_line_tk' tag to convert to <hr>.
         """
-        # <<< MODIFIED: Check for separator_line_tk first >>>
         if "separator_line_tk" in tkinter_tags_list:
-            # If the special tag is present, output an <hr> and ignore the text_segment (which should be just "\n")
             return "<hr class=\"content-separator\">\n"
 
         if not text_segment and not tkinter_tags_list:
@@ -110,7 +107,6 @@ class ExportTab(ttk.Frame):
         if not processed_text.strip() and not tkinter_tags_list: 
             return ""
 
-        # Ensure "separator_line_tk" is not passed to _tkinter_tag_to_css_class if it somehow reaches here
         css_classes = [self._tkinter_tag_to_css_class(tag) for tag in tkinter_tags_list if tag != "separator_line_tk" and self._tkinter_tag_to_css_class(tag)]
         class_attribute = f' class="{ " ".join(css_classes) }"' if css_classes else ""
         
@@ -120,6 +116,8 @@ class ExportTab(ttk.Frame):
     def _generate_html_content(self, image_dir_full_path, image_subdir_name_for_html_src):
         """
         Generates the full HTML content string based on selected options, with improved CSS.
+        Dates for data points will reflect config.DATE_FORMAT used in reporting_tab.
+        Timestamps for report generation are formatted explicitly here.
         """
         html_parts = []
         
@@ -136,6 +134,7 @@ class ExportTab(ttk.Frame):
         html_parts.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n")
         html_parts.append("    <meta charset=\"UTF-8\">\n")
         html_parts.append("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n")
+        # Report title timestamp
         html_parts.append(f"    <title>Job Report - {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}</title>\n")
         html_parts.append("    <style>\n")
         html_parts.append(f"        body {{ font-family: '{default_font_family}', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: {default_font_size}pt; margin: 0; padding: 0; line-height: 1.6; color: {default_fg_color}; background-color: #f4f7f6; }}\n")
@@ -157,7 +156,6 @@ class ExportTab(ttk.Frame):
         html_parts.append("        .chart-image {{ max-width: 100%; height: auto; border: 1px solid #d5dbdb; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }}\n")
         html_parts.append("        .coordinator-section { margin-top: 30px; padding-top: 20px; border-top: 2px solid #5dade2; }\n")
         html_parts.append("        .coordinator-section h3 { border-bottom: none; margin-top: 1em; }\n") 
-        # <<< ADDED CSS for hr.content-separator >>>
         html_parts.append("        hr.content-separator { border: 0; height: 1px; background-color: #ccc; margin: 1.5em 0; }\n")
         html_parts.append("        .footer-timestamp { text-align: center; margin-top: 40px; font-size: 0.85em; color: #7f8c8d; border-top: 1px solid #eaecee; padding-top: 15px; }\n")
         html_parts.append("    </style>\n</head>\n<body>\n<div class=\"report-container\">\n")
@@ -225,6 +223,7 @@ class ExportTab(ttk.Frame):
                  html_parts.append("<p class=\"report-indented-item report-warning-text\"><em>No charts were generated or available for export.</em></p>\n")
             html_parts.append("</div>\n")
 
+        # Report generated footer timestamp
         html_parts.append(f"<div class=\"footer-timestamp\"><p>Report Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</p></div>\n")
         html_parts.append("</div>\n</body>\n</html>")
         
