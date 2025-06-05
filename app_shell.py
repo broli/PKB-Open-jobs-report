@@ -149,8 +149,9 @@ class OpenJobsApp(tk.Tk):
         about_message = (
             f"{config.APP_NAME}\n"
             f"Version: {config.APP_VERSION}\n\n"
-            "This application helps track and manage open job statuses.\n\n"
-            "Developed by: [Your Name/Organization]" # You can customize this
+            "This application helps track and manage open job statuses.\n"
+            "Working to also add reporting and meta data analysis\n\n"
+            "Developed by: Carlos Ferrabone" # You can customize this
         )
         messagebox.showinfo("About " + config.APP_NAME, about_message, parent=self)
 
