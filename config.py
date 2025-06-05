@@ -79,4 +79,4 @@ REPORT_TEXT_FG_COLOR = "black"
 
 # --- Application Information (Optional) ---
 APP_NAME = "Open Jobs Status Tracker"
-APP_VERSION = "2.0.0" # UPDATED version for migration
+APP_VERSION = "2.0.1" # UPDATED version for migration

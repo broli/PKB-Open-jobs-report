@@ -475,9 +475,10 @@ class ReportingTab(ttk.Frame):
             lgd = ax.legend(wedges, pie_labels_for_legend,
                       title="Breakdown",
                       loc="center left", 
-                      bbox_to_anchor=(0.92, 0.5), 
+                      bbox_to_anchor=(0.78, 0.90), 
                       fontsize=config.DEFAULT_FONT_SIZE - 1,
-                      title_fontsize=config.DEFAULT_FONT_SIZE)
+                      title_fontsize=config.DEFAULT_FONT_SIZE,
+                      facecolor='aliceblue')
 
             self.overall_financial_summary_chart_figure.subplots_adjust(left=0.05, bottom=0.05, right=0.70, top=0.88) 
 
