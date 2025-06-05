@@ -197,6 +197,7 @@ class ReportingTab(ttk.Frame):
         Prepares the 'open jobs' DataFrame for reporting.
         Filters out closed/cancelled jobs, calculates numeric financial columns,
         and derives job age and age buckets.
+        'Balance_numeric' here represents the OUTSTANDING balance from the source data.
         Returns:
             pd.DataFrame: The processed open jobs DataFrame.
             pd.Timestamp: The current timestamp (normalized to day).
@@ -224,6 +225,7 @@ class ReportingTab(ttk.Frame):
             return open_jobs_df, today 
 
         # Convert currency columns to numeric, handling errors
+        # 'Balance' column is OUTSTANDING balance
         if 'Balance' in open_jobs_df.columns:
             open_jobs_df['Balance_numeric'] = pd.to_numeric(
                 open_jobs_df['Balance'].astype(str).replace({'\$': '', ',': ''}, regex=True),
@@ -236,8 +238,6 @@ class ReportingTab(ttk.Frame):
         # Calculate Job Age and Age Buckets
         turn_in_date_col = 'Turn in Date'
         if turn_in_date_col in open_jobs_df.columns:
-            # 'TurnInDate_dt' should already be datetime from earlier conversion of df_all_loaded
-            # If not, or to be safe:
             open_jobs_df['TurnInDate_dt'] = pd.to_datetime(open_jobs_df[turn_in_date_col], errors='coerce')
             
             valid_turn_in_dates_mask = open_jobs_df['TurnInDate_dt'].notna()
@@ -249,7 +249,6 @@ class ReportingTab(ttk.Frame):
                 open_jobs_df['JobAge_days'] = pd.to_numeric(open_jobs_df['JobAge_days'], errors='coerce') # Ensure numeric
 
             if open_jobs_df['JobAge_days'].notna().any():
-                # Define age bins and labels for bucketing
                 age_bins = [-1, 7, 21, 49, 56, float('inf')] 
                 age_labels = [
                     'Job Age: 0-7 Days (First Week of Job Age)', 
@@ -285,9 +284,7 @@ class ReportingTab(ttk.Frame):
             return None
 
         df_copy = source_df.copy()
-        # Ensure 'Turn in Date' is datetime
         df_copy['TurnInDate_dt'] = pd.to_datetime(df_copy['Turn in Date'], errors='coerce')
-        
         df_copy = df_copy.dropna(subset=['TurnInDate_dt'])
 
         if df_copy.empty:
@@ -417,7 +414,10 @@ class ReportingTab(ttk.Frame):
             self.overall_status_chart_figure = None 
 
     def _create_financial_summary_chart(self, parent_frame, open_jobs_df):
-        """Creates and embeds a pie chart for the financial summary."""
+        """
+        Creates and embeds a pie chart for the financial summary.
+        Assumes 'Balance_numeric' is OUTSTANDING balance.
+        """
         if hasattr(self, 'overall_financial_summary_chart_canvas_widget') and self.overall_financial_summary_chart_canvas_widget:
             self.overall_financial_summary_chart_canvas_widget.get_tk_widget().destroy()
             self.overall_financial_summary_chart_canvas_widget = None
@@ -426,27 +426,27 @@ class ReportingTab(ttk.Frame):
 
         if open_jobs_df is None or open_jobs_df.empty or \
            'InvoiceTotal_numeric' not in open_jobs_df.columns or \
-           'Balance_numeric' not in open_jobs_df.columns:
+           'Balance_numeric' not in open_jobs_df.columns: # Balance_numeric is outstanding
             ttk.Label(parent_frame, text="No data for financial summary chart.").pack(expand=True, fill=tk.BOTH)
             return
 
         total_invoice = open_jobs_df['InvoiceTotal_numeric'].sum()
-        total_balance = open_jobs_df['Balance_numeric'].sum()
-        total_collected = total_invoice - total_balance
+        total_outstanding_balance = open_jobs_df['Balance_numeric'].sum() # Sum of 'Balance' column
+        total_collected_calculated = total_invoice - total_outstanding_balance
         
         pie_labels_for_legend = []
         pie_values = []
         pie_colors = []
         explode_values = [] 
 
-        if total_collected > 0:
-            pie_labels_for_legend.append(f'Collected (${total_collected:,.0f})')
-            pie_values.append(total_collected)
+        if total_collected_calculated > 0:
+            pie_labels_for_legend.append(f'Collected (${total_collected_calculated:,.0f})')
+            pie_values.append(total_collected_calculated)
             pie_colors.append('#77DD77') 
             explode_values.append(0.03) 
-        if total_balance > 0:
-            pie_labels_for_legend.append(f'Remaining (${total_balance:,.0f})')
-            pie_values.append(total_balance)
+        if total_outstanding_balance > 0:
+            pie_labels_for_legend.append(f'Remaining (${total_outstanding_balance:,.0f})')
+            pie_values.append(total_outstanding_balance)
             pie_colors.append('#FFB347') 
             explode_values.append(0.03)
 
@@ -497,7 +497,7 @@ class ReportingTab(ttk.Frame):
     def display_all_stats(self):
         """Main function to refresh and display all statistics and charts."""
         logging.info("ReportingTab: Refreshing all statistics.")
-        open_jobs_df, today = self._prepare_open_jobs_data()
+        open_jobs_df, today = self._prepare_open_jobs_data() # Balance_numeric is outstanding
         source_df_for_intake = self.app.status_df 
 
         if open_jobs_df is None: 
@@ -505,26 +505,20 @@ class ReportingTab(ttk.Frame):
             self.overall_stats_text_area.delete('1.0', tk.END)
             self._insert_text_with_tags(self.overall_stats_text_area, "No data available in the application.", ("warning_text",))
             self.overall_stats_text_area.config(state=tk.DISABLED)
-            
+            # Clear charts as well
             if hasattr(self, 'overall_status_chart_canvas_widget') and self.overall_status_chart_canvas_widget:
                 self.overall_status_chart_canvas_widget.get_tk_widget().destroy()
-                self.overall_status_chart_canvas_widget = None
-                self.overall_status_chart_figure = None
-            for widget in self.overall_status_chart_frame.winfo_children(): widget.destroy() 
+            for widget in self.overall_status_chart_frame.winfo_children(): widget.destroy()
             ttk.Label(self.overall_status_chart_frame, text="No data for status chart.").pack(expand=True, fill=tk.BOTH)
             
             if hasattr(self, 'overall_financial_summary_chart_canvas_widget') and self.overall_financial_summary_chart_canvas_widget:
                 self.overall_financial_summary_chart_canvas_widget.get_tk_widget().destroy()
-                self.overall_financial_summary_chart_canvas_widget = None
-                self.overall_financial_summary_chart_figure = None
-            for widget in self.overall_financial_summary_chart_frame.winfo_children(): widget.destroy() 
+            for widget in self.overall_financial_summary_chart_frame.winfo_children(): widget.destroy()
             ttk.Label(self.overall_financial_summary_chart_frame, text="No data for financial summary chart.").pack(expand=True, fill=tk.BOTH)
             
             if hasattr(self, 'weekly_intake_chart_canvas_widget') and self.weekly_intake_chart_canvas_widget:
                 self.weekly_intake_chart_canvas_widget.get_tk_widget().destroy()
-                self.weekly_intake_chart_canvas_widget = None
-                self.weekly_intake_chart_figure = None
-            for widget in self.weekly_intake_chart_frame.winfo_children(): widget.destroy() 
+            for widget in self.weekly_intake_chart_frame.winfo_children(): widget.destroy()
             ttk.Label(self.weekly_intake_chart_frame, text="No data for weekly intake chart.").pack(expand=True, fill=tk.BOTH)
 
             for pc_name_safe in list(self.coordinator_tabs_widgets.keys()):
@@ -574,7 +568,10 @@ class ReportingTab(ttk.Frame):
 
 
     def _populate_overall_pipeline_tab(self, open_jobs_df, today, num_total_jobs_loaded):
-        """Populates the text area of the 'Overall Pipeline Health' tab."""
+        """
+        Populates the text area of the 'Overall Pipeline Health' tab.
+        Assumes 'Balance_numeric' in open_jobs_df is OUTSTANDING balance.
+        """
         txt = self.overall_stats_text_area
         txt.config(state=tk.NORMAL)
         txt.delete('1.0', tk.END)
@@ -604,14 +601,15 @@ class ReportingTab(ttk.Frame):
         self._insert_text_with_tags(txt, "Financial Summary (All Open Jobs - See Chart for Details):", ("subheader",))
         if open_jobs_df is not None and not open_jobs_df.empty and 'Balance_numeric' in open_jobs_df.columns and 'InvoiceTotal_numeric' in open_jobs_df.columns:
             total_invoice = open_jobs_df['InvoiceTotal_numeric'].sum()
-            total_balance = open_jobs_df['Balance_numeric'].sum()
-            total_collected = total_invoice - total_balance
+            total_outstanding_balance = open_jobs_df['Balance_numeric'].sum() # Sum of 'Balance' (outstanding)
+            total_collected_calculated = total_invoice - total_outstanding_balance
+
             txt.insert(tk.END, "Total Invoice Amount: ", ("indented_item", "key_value_label"))
             self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(total_invoice)}", ("indented_item", "bold_metric"))
-            txt.insert(tk.END, "Total Collected: ", ("indented_item", "key_value_label"))
-            self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(total_collected)}", ("indented_item", "bold_metric"))
-            txt.insert(tk.END, "Total Remaining Balance: ", ("indented_item", "key_value_label"))
-            self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(total_balance)}", ("indented_item", "bold_metric"))
+            txt.insert(tk.END, "Total Collected (Calculated): ", ("indented_item", "key_value_label"))
+            self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(total_collected_calculated)}", ("indented_item", "bold_metric"))
+            txt.insert(tk.END, "Total Remaining Balance (from 'Balance' column): ", ("indented_item", "key_value_label"))
+            self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(total_outstanding_balance)}", ("indented_item", "bold_metric"))
         elif open_jobs_df is not None and open_jobs_df.empty: self._insert_text_with_tags(txt, "No open jobs for financial summary.", ("indented_item",))
         else: self._insert_text_with_tags(txt, "Numeric financial columns not pre-calculated or available.", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
@@ -627,9 +625,7 @@ class ReportingTab(ttk.Frame):
                 oldest_idx = open_jobs_df['JobAge_days'].idxmax()
                 oldest = open_jobs_df.loc[oldest_idx]
                 self._insert_text_with_tags(txt, "Oldest Project (since turn-in):", ("indented_item", "key_value_label"))
-                # Using 'Invoice #' as key
                 self._insert_text_with_tags(txt, f"  - Invoice #: {oldest.get('Invoice #', 'N/A')}", ("indented_item", "bold_metric")) 
-                # Date display uses config.DATE_FORMAT (now YYYY-MM-DD)
                 self._insert_text_with_tags(txt, f"  - Turn-in Date: {oldest['TurnInDate_dt'].strftime(config.DATE_FORMAT) if pd.notna(oldest['TurnInDate_dt']) else 'N/A'}", ("indented_item",))
                 self._insert_text_with_tags(txt, f"  - Age: {oldest['JobAge_days']:.0f} days", ("indented_item", "bold_metric"))
                 
@@ -655,12 +651,10 @@ class ReportingTab(ttk.Frame):
                 self._insert_text_with_tags(txt, f"Found {len(stuck_jobs_df)} potentially stuck job(s):", ("indented_item", "warning_text"))
                 for _, job in stuck_jobs_df.iterrows():
                     account_name_stuck = job.get('Account', 'N/A')
-                    # Using 'Invoice #' as key
                     po_number_stuck = job.get('Invoice #', 'N/A') 
                     status_stuck = job.get('Status', 'N/A')
                     age_stuck = job.get('JobAge_days', 0)
                     pc_stuck = job.get('Project Coordinator', 'N/A')
-                    # Displaying "PO #:" for user readability, but fetching data with 'Invoice #'
                     line_stuck = (f"  - Account: {account_name_stuck} - PO #: {po_number_stuck}, "
                                   f"Status: {status_stuck}, Age: {age_stuck:.0f}d, PC: {pc_stuck}")
                     self._insert_text_with_tags(txt, line_stuck, ("indented_item",))
@@ -668,31 +662,36 @@ class ReportingTab(ttk.Frame):
         else: self._insert_text_with_tags(txt, "Cannot determine stuck jobs (missing required data like JobAge_days or Status).", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
 
-        self._insert_text_with_tags(txt, "High-Value Aging Jobs (Open Jobs > 8 Weeks & Balance > $10,000):", ("subheader",))
+        self._insert_text_with_tags(txt, "High-Value Aging Jobs (Open Jobs > 8 Weeks & Outstanding Balance > $10,000):", ("subheader",))
         self._insert_separator_line(txt) 
-        if open_jobs_df is not None and not open_jobs_df.empty and 'JobAge_days' in open_jobs_df.columns and 'Balance_numeric' in open_jobs_df.columns and 'InvoiceTotal_numeric' in open_jobs_df.columns: 
+        if open_jobs_df is not None and not open_jobs_df.empty and \
+           'JobAge_days' in open_jobs_df.columns and \
+           'Balance_numeric' in open_jobs_df.columns and \
+           'InvoiceTotal_numeric' in open_jobs_df.columns: 
             aging_threshold_days = 56 
             value_threshold = 10000 
-            hv_aging_df = open_jobs_df[(open_jobs_df['JobAge_days'] > aging_threshold_days) & (open_jobs_df['Balance_numeric'] > value_threshold)]
+            # 'Balance_numeric' is outstanding balance
+            hv_aging_df = open_jobs_df[
+                (open_jobs_df['JobAge_days'] > aging_threshold_days) & 
+                (open_jobs_df['Balance_numeric'] > value_threshold)
+            ]
             if not hv_aging_df.empty:
-                self._insert_text_with_tags(txt, f"Found {len(hv_aging_df)} high-value aging job(s):", ("indented_item", "warning_text"))
+                self._insert_text_with_tags(txt, f"Found {len(hv_aging_df)} high-value aging job(s) (outstanding balance > ${value_threshold:,.0f}):", ("indented_item", "warning_text"))
                 for _, job in hv_aging_df.iterrows():
                     account_name = job.get('Account', 'N/A')
-                    # Using 'Invoice #' as key
                     po_number = job.get('Invoice #', 'N/A') 
-                    remaining_balance_val = job.get('Balance_numeric', 0)
+                    outstanding_balance_val = job.get('Balance_numeric', 0) # Directly from 'Balance' column
                     job_total_val = job.get('InvoiceTotal_numeric', 0) 
                     job_age_days = job.get('JobAge_days', 0)
                     project_coordinator = job.get('Project Coordinator', 'N/A')
 
-                    remaining_balance_str = self.app.CURRENCY_FORMAT.format(remaining_balance_val)
+                    outstanding_balance_str = self.app.CURRENCY_FORMAT.format(outstanding_balance_val)
                     job_total_str = self.app.CURRENCY_FORMAT.format(job_total_val) 
-                    # Displaying "PO #:" for user readability
                     line = (f"  - {account_name} - PO #: {po_number}, " 
-                            f"Remaining Balance: {remaining_balance_str} (Job Total: {job_total_str}), "
+                            f"Outstanding Balance: {outstanding_balance_str} (Job Total: {job_total_str}), "
                             f"Age: {job_age_days:.0f}d, PC: {project_coordinator}")
                     self._insert_text_with_tags(txt, line, ("indented_item",))
-            else: self._insert_text_with_tags(txt, "No high-value aging jobs identified.", ("indented_item",))
+            else: self._insert_text_with_tags(txt, "No high-value aging jobs identified with outstanding balance > $10,000.", ("indented_item",))
         else: self._insert_text_with_tags(txt, "Cannot determine high-value aging jobs (missing required data like JobAge_days, Balance_numeric, or InvoiceTotal_numeric).", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
 
@@ -703,24 +702,94 @@ class ReportingTab(ttk.Frame):
            open_jobs_df['Age_Bucket'].notna().any() : 
             financial_by_bucket = open_jobs_df.groupby('Age_Bucket', observed=False).agg( 
                 Total_Invoice_Value=('InvoiceTotal_numeric', 'sum'),
-                Total_Remaining_Balance=('Balance_numeric', 'sum'),
-                Job_Count=('Invoice #', 'count') # Using 'Invoice #' for count
+                Total_Outstanding_Balance=('Balance_numeric', 'sum'), # Sum of 'Balance' (outstanding)
+                Job_Count=('Invoice #', 'count') 
             )
             if not financial_by_bucket.empty:
                 for bucket, data in financial_by_bucket.iterrows():
+                    calculated_collected = data['Total_Invoice_Value'] - data['Total_Outstanding_Balance']
                     txt.insert(tk.END, f"- {bucket} ({data['Job_Count']} jobs):\n", ("indented_item", "key_value_label"))
                     txt.insert(tk.END, f"  - Total Invoice Value: ", ("indented_item",))
                     self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(data['Total_Invoice_Value'])}", ("indented_item", "bold_metric"))
+                    txt.insert(tk.END, f"  - Total Collected: ", ("indented_item",))
+                    self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(calculated_collected)}", ("indented_item", "bold_metric"))
                     txt.insert(tk.END, f"  - Total Remaining Balance: ", ("indented_item",))
-                    self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(data['Total_Remaining_Balance'])}", ("indented_item", "bold_metric"))
+                    self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(data['Total_Outstanding_Balance'])}", ("indented_item", "bold_metric"))
             else: self._insert_text_with_tags(txt, "No data to aggregate financial value by age bucket.", ("indented_item",))
         else: self._insert_text_with_tags(txt, "Cannot determine financial value by age bucket (missing required data like Age_Bucket or financial columns).", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
+
+        # --- START: New section for Jobs with Low Collection Percentage ---
+        self._insert_text_with_tags(txt, "Jobs with Low Collection (Calculated Collected < 35% of Total):", ("subheader",))
+        self._insert_separator_line(txt)
+
+        if open_jobs_df is not None and not open_jobs_df.empty and \
+           'Balance_numeric' in open_jobs_df.columns and \
+           'InvoiceTotal_numeric' in open_jobs_df.columns and \
+           'Status' in open_jobs_df.columns:
+
+            statuses_to_exclude_for_low_collection = ['New', 'Waiting Measure']
+            df_for_low_collection_check = open_jobs_df[
+                ~open_jobs_df['Status'].isin(statuses_to_exclude_for_low_collection)
+            ].copy()
+
+            if not df_for_low_collection_check.empty:
+                # Calculate ACTUAL collected amount and its percentage
+                df_for_low_collection_check['Collected_Amount_Calculated'] = \
+                    df_for_low_collection_check['InvoiceTotal_numeric'] - df_for_low_collection_check['Balance_numeric']
+                
+                df_for_low_collection_check['Collected_Percentage_Actual'] = 0.0 # Initialize
+                non_zero_invoice_total_mask = df_for_low_collection_check['InvoiceTotal_numeric'] != 0
+                
+                df_for_low_collection_check.loc[non_zero_invoice_total_mask, 'Collected_Percentage_Actual'] = \
+                    (df_for_low_collection_check.loc[non_zero_invoice_total_mask, 'Collected_Amount_Calculated'] / \
+                     df_for_low_collection_check.loc[non_zero_invoice_total_mask, 'InvoiceTotal_numeric']) * 100
+                
+                low_collection_jobs_df = df_for_low_collection_check[
+                    df_for_low_collection_check['Collected_Percentage_Actual'] < 35
+                ]
+
+                if not low_collection_jobs_df.empty:
+                    self._insert_text_with_tags(txt, f"Found {len(low_collection_jobs_df)} job(s) with calculated collection below 35% in relevant statuses:", ("indented_item", "warning_text"))
+                    for _, job_row in low_collection_jobs_df.iterrows():
+                        inv_num = job_row.get('Invoice #', 'N/A')
+                        acc_name = job_row.get('Account', 'N/A')
+                        job_status = job_row.get('Status', 'N/A')
+                        inv_total_val = job_row.get('InvoiceTotal_numeric', 0)
+                        outstanding_bal_val = job_row.get('Balance_numeric', 0) # From 'Balance' column
+                        collected_calc_val = job_row.get('Collected_Amount_Calculated', 0)
+                        coll_perc = job_row.get('Collected_Percentage_Actual', 0)
+                        pc = job_row.get('Project Coordinator', 'N/A')
+
+                        inv_total_str = self.app.CURRENCY_FORMAT.format(inv_total_val)
+                        outstanding_str = self.app.CURRENCY_FORMAT.format(outstanding_bal_val)
+                        collected_calc_str = self.app.CURRENCY_FORMAT.format(collected_calc_val)
+                        
+                        job_info_line1 = f"{acc_name}: {job_status}"
+                        job_info_line2 = (f"    Total: {inv_total_str}, Balance: {outstanding_str}, "
+                                          f"Collected: {collected_calc_str} ({coll_perc:.1f}% of total)")
+                        #job_info_line3 = f"    PC: {pc}"
+                        
+                        self._insert_text_with_tags(txt, job_info_line1, ("indented_item",))
+                        txt.insert(tk.END, job_info_line2 + "\n\n", ("indented_item",))
+                        #txt.insert(tk.END, job_info_line3 + "\n\n", ("indented_item",))
+                else:
+                    self._insert_text_with_tags(txt, "No jobs found with calculated collection below 35% in the specified relevant statuses.", ("indented_item",))
+            else:
+                self._insert_text_with_tags(txt, "No open jobs found in the relevant statuses to check for low collection.", ("indented_item",))
+        else:
+            self._insert_text_with_tags(txt, "Cannot determine jobs with low collection (missing required data like Balance, Invoice Total, or Status).", ("indented_item", "warning_text"))
+        self._insert_text_with_tags(txt, "")
+        # --- END: New section ---
+
         txt.config(state=tk.DISABLED) 
 
 
     def _populate_coordinator_tab(self, pc_name_display, pc_open_jobs_df, today):
-        """Populates the text area of a specific Project Coordinator's tab."""
+        """
+        Populates the text area of a specific Project Coordinator's tab.
+        Assumes 'Balance_numeric' in pc_open_jobs_df is OUTSTANDING balance.
+        """
         pc_name_safe = str(pc_name_display).replace(".", "_dot_") 
         txt = self._create_or_get_coordinator_tab(pc_name_safe) 
         
@@ -744,14 +813,15 @@ class ReportingTab(ttk.Frame):
         self._insert_text_with_tags(txt, "Financial Summary (for these open jobs):", ("subheader",))
         if not pc_open_jobs_df.empty and 'Balance_numeric' in pc_open_jobs_df.columns and 'InvoiceTotal_numeric' in pc_open_jobs_df.columns:
             pc_total_invoice = pc_open_jobs_df['InvoiceTotal_numeric'].sum()
-            pc_total_balance = pc_open_jobs_df['Balance_numeric'].sum()
-            pc_total_collected = pc_total_invoice - pc_total_balance
+            pc_total_outstanding_balance = pc_open_jobs_df['Balance_numeric'].sum() # Sum of 'Balance' (outstanding)
+            pc_total_collected_calculated = pc_total_invoice - pc_total_outstanding_balance
+
             txt.insert(tk.END, "  Total Invoice Amount: ", ("indented_item", "key_value_label"))
             self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(pc_total_invoice)}",("indented_item", "bold_metric"))
-            txt.insert(tk.END, "  Total Collected: ", ("indented_item", "key_value_label"))
-            self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(pc_total_collected)}", ("indented_item", "bold_metric"))
-            txt.insert(tk.END, "  Total Remaining Balance: ", ("indented_item", "key_value_label"))
-            self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(pc_total_balance)}", ("indented_item", "bold_metric"))
+            txt.insert(tk.END, "  Total Collected (Calculated): ", ("indented_item", "key_value_label"))
+            self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(pc_total_collected_calculated)}", ("indented_item", "bold_metric"))
+            txt.insert(tk.END, "  Total Remaining Balance (from 'Balance' col): ", ("indented_item", "key_value_label"))
+            self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(pc_total_outstanding_balance)}", ("indented_item", "bold_metric"))
         elif pc_open_jobs_df.empty: self._insert_text_with_tags(txt, "  No open jobs for financial summary.", ("indented_item",))
         else: self._insert_text_with_tags(txt, "  Financial columns (Balance_numeric, InvoiceTotal_numeric) not available.", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
