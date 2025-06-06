@@ -581,12 +581,12 @@ class ReportingTab(ttk.Frame):
 
         self._insert_text_with_tags(txt, f"Overall Snapshot ({today.strftime('%Y-%m-%d %H:%M:%S')})", ("header",))
         self._insert_separator_line(txt) 
-        txt.insert(tk.END, "Total Jobs in Current Dataset: ", ("key_value_label",))
-        self._insert_text_with_tags(txt, f"{num_total_jobs_loaded}", ("bold_metric",))
+        #txt.insert(tk.END, "Total Jobs in Current Dataset: ", ("key_value_label",))
+        #self._insert_text_with_tags(txt, f"{num_total_jobs_loaded}", ("bold_metric",))
         txt.insert(tk.END, "Currently Open Jobs (Active): ", ("key_value_label",))
         self._insert_text_with_tags(txt, f"{num_open_jobs}", ("bold_metric",))
         self._insert_text_with_tags(txt, "") 
-
+        """
         self._insert_text_with_tags(txt, "Open Job Status Counts (See Chart for Details):", ("subheader",))
         if open_jobs_df is not None and not open_jobs_df.empty:
             open_status_counts = open_jobs_df['Status'].value_counts()
@@ -598,7 +598,7 @@ class ReportingTab(ttk.Frame):
             else: self._insert_text_with_tags(txt, "No open jobs with status information.", ("indented_item",))
         else: self._insert_text_with_tags(txt, "No open jobs found.", ("indented_item",))
         self._insert_text_with_tags(txt, "")
-
+        
         self._insert_text_with_tags(txt, "Financial Summary (All Open Jobs - See Chart for Details):", ("subheader",))
         if open_jobs_df is not None and not open_jobs_df.empty and 'Balance_numeric' in open_jobs_df.columns and 'InvoiceTotal_numeric' in open_jobs_df.columns:
             total_invoice = open_jobs_df['InvoiceTotal_numeric'].sum()
@@ -614,7 +614,7 @@ class ReportingTab(ttk.Frame):
         elif open_jobs_df is not None and open_jobs_df.empty: self._insert_text_with_tags(txt, "No open jobs for financial summary.", ("indented_item",))
         else: self._insert_text_with_tags(txt, "Numeric financial columns not pre-calculated or available.", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
-        
+
         self._insert_text_with_tags(txt, "Work-in-Progress Timing (All Open Jobs, from Turn-in Date):", ("subheader",))
         self._insert_separator_line(txt) 
         if open_jobs_df is not None and not open_jobs_df.empty and 'JobAge_days' in open_jobs_df.columns:
@@ -641,6 +641,7 @@ class ReportingTab(ttk.Frame):
         elif open_jobs_df is not None and open_jobs_df.empty: self._insert_text_with_tags(txt, "No open jobs for timing statistics.", ("indented_item",))
         else: self._insert_text_with_tags(txt, "Timing columns (JobAge_days) not pre-calculated or available.", ("indented_item", "warning_text"))
         self._insert_text_with_tags(txt, "")
+        """
 
         self._insert_text_with_tags(txt, "\"Stuck\" Jobs in Early Stages (Open Jobs > 3 Weeks in early status):", ("subheader",))
         self._insert_separator_line(txt) 
