@@ -710,7 +710,7 @@ class ReportingTab(ttk.Frame):
             if not financial_by_bucket.empty:
                 for bucket, data in financial_by_bucket.iterrows():
                     calculated_collected = data['Total_Invoice_Value'] - data['Total_Outstanding_Balance']
-                    txt.insert(tk.END, f"- {bucket} ({data['Job_Count']} jobs):\n", ("indented_item", "key_value_label"))
+                    txt.insert(tk.END, f"- {bucket} ({data['Job_Count']:.0f} jobs):\n", ("indented_item", "key_value_label"))
                     txt.insert(tk.END, f"  - Total Invoice Value: ", ("indented_item",))
                     self._insert_text_with_tags(txt, f"{self.app.CURRENCY_FORMAT.format(data['Total_Invoice_Value'])}", ("indented_item", "bold_metric"))
                     txt.insert(tk.END, f"  - Total Collected: ", ("indented_item",))
